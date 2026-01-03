@@ -10,6 +10,7 @@ name = "Example Server"
 host = "192.168.1.100"
 port = 22
 user = "myuser"
+identity_file = "~/.ssh/id_rsa"
 remote_base = "/home/myuser/.sync-shuttle"
 enabled = false
 s3_backup = false
