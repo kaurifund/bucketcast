@@ -962,8 +962,14 @@ action_push() {
     # Perform pre-flight checks
     preflight_push "$SOURCE_PATH" "$dest_dir"
     
+    # Build remote destination for display
+    local remote_dest="${server_user}@${server_host}:${server_remote_base}/local/inbox/${HOSTNAME:-$(hostname)}/"
+
     if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would transfer: $SOURCE_PATH -> $dest_dir"
+        log_info "[DRY-RUN] Would transfer:"
+        log_info "  Source:       $SOURCE_PATH"
+        log_info "  Local stage:  $dest_dir"
+        log_info "  Remote dest:  $remote_dest"
         perform_rsync_push "$SOURCE_PATH" "$dest_dir" "--dry-run"
     else
         log_info "Transferring: $SOURCE_PATH -> $dest_dir"
