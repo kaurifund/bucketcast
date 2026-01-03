@@ -135,6 +135,7 @@ sync_to_remote() {
     
     # Build SSH options (including identity file if specified)
     local ssh_opts="-p ${server_port} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=${SSH_CONNECT_TIMEOUT:-10}"
+    log_debug "Identity file from config: '${server_identity_file:-}'"
     if [[ -n "${server_identity_file:-}" ]]; then
         # Expand ~ in path
         local expanded_key="${server_identity_file/#\~/$HOME}"
