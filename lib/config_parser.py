@@ -72,12 +72,17 @@ def get_server_bash(config: dict, server_id: str) -> None:
             return ""
         return str(val).replace("'", "'\\''")
 
+    user = server.get('user', '')
+    # Default remote_base to user's home .sync-shuttle directory
+    default_remote_base = f"/home/{user}/.sync-shuttle" if user else ""
+    remote_base = server.get('remote_base') or default_remote_base
+
     print(f"server_name='{escape(server.get('name', server_id))}'")
     print(f"server_host='{escape(server.get('host', ''))}'")
     print(f"server_port='{escape(server.get('port', 22))}'")
-    print(f"server_user='{escape(server.get('user', ''))}'")
+    print(f"server_user='{escape(user)}'")
     print(f"server_identity_file='{escape(server.get('identity_file', ''))}'")
-    print(f"server_remote_base='{escape(server.get('remote_base', ''))}'")
+    print(f"server_remote_base='{escape(remote_base)}'")
     print(f"server_s3_backup='{escape(str(server.get('s3_backup', False)).lower())}'")
 
 

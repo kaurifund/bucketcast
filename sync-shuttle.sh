@@ -943,17 +943,22 @@ action_push() {
     
     # Parse server config
     eval "$server_config"
-    
+
+    # Validate remote_base path is safe
+    if ! validate_remote_base "$server_remote_base" "$SERVER_ID"; then
+        exit 4
+    fi
+
     # Validate destination is within sandbox
     local dest_dir="${REMOTE_DIR}/${SERVER_ID}/files"
     if ! validate_path_within_sandbox "$dest_dir"; then
         log_error "Destination path validation failed (security check)"
         exit 4
     fi
-    
+
     # Ensure destination directory exists
     mkdir -p "$dest_dir"
-    
+
     # Perform pre-flight checks
     preflight_push "$SOURCE_PATH" "$dest_dir"
     
@@ -1003,17 +1008,22 @@ action_pull() {
     
     # Parse server config
     eval "$server_config"
-    
+
+    # Validate remote_base path is safe
+    if ! validate_remote_base "$server_remote_base" "$SERVER_ID"; then
+        exit 4
+    fi
+
     # Validate destination is within sandbox
     local dest_dir="${INBOX_DIR}/${SERVER_ID}"
     if ! validate_path_within_sandbox "$dest_dir"; then
         log_error "Destination path validation failed (security check)"
         exit 4
     fi
-    
+
     # Ensure destination directory exists
     mkdir -p "$dest_dir"
-    
+
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "[DRY-RUN] Would pull from: ${server_user}@${server_host}:${server_remote_base}/local/outbox/"
         perform_rsync_pull "$SERVER_ID" "$dest_dir" "--dry-run"

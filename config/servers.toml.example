@@ -11,7 +11,7 @@ host = "192.168.1.100"           # IP address or hostname
 port = 22                        # SSH port
 user = "myuser"                  # SSH username
 identity_file = "~/.ssh/id_rsa" # SSH key path (.pem, id_rsa, id_ed25519, etc.)
-remote_base = "/home/myuser/.sync-shuttle"  # Remote sync directory
+# remote_base = "/home/myuser/.sync-shuttle"  # Optional: defaults to /home/<user>/.sync-shuttle
 enabled = false                  # Set to true to activate this server
 s3_backup = false                # Archive synced files to S3
 

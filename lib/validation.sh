@@ -8,6 +8,7 @@
 # Functions:
 #   validate_environment()          - Check required tools exist
 #   validate_path_within_sandbox()  - Security: path containment check
+#   validate_remote_base()          - Security: remote path safety check
 #   validate_server_id()            - Validate server ID format
 #   validate_source_path()          - Validate source exists and is readable
 #   check_file_collision()          - Check for existing files
@@ -123,6 +124,65 @@ validate_path_within_sandbox() {
     fi
     
     log_debug "Path validation passed: $path_to_check"
+    return 0
+}
+
+#===============================================================================
+# VALIDATE: Remote base path is safe
+# Prevents dangerous remote paths that could damage the remote system
+#===============================================================================
+validate_remote_base() {
+    local remote_base="$1"
+    local server_id="$2"
+
+    # Check not empty
+    if [[ -z "$remote_base" ]]; then
+        log_error "Server '$server_id': remote_base cannot be empty"
+        return 1
+    fi
+
+    # Must be absolute path
+    if [[ "$remote_base" != /* ]]; then
+        log_error "Server '$server_id': remote_base must be an absolute path (got: $remote_base)"
+        return 1
+    fi
+
+    # Check for path traversal
+    if [[ "$remote_base" == *".."* ]]; then
+        log_error "Server '$server_id': remote_base cannot contain '..'"
+        return 1
+    fi
+
+    # Block dangerous system paths
+    local blocked_paths=(
+        "/etc"
+        "/bin"
+        "/sbin"
+        "/usr"
+        "/lib"
+        "/lib64"
+        "/boot"
+        "/dev"
+        "/proc"
+        "/sys"
+        "/var"
+        "/root"
+        "/tmp"
+    )
+
+    for blocked in "${blocked_paths[@]}"; do
+        if [[ "$remote_base" == "$blocked" || "$remote_base" == "$blocked"/* ]]; then
+            log_error "Server '$server_id': remote_base cannot be in system directory: $blocked"
+            return 1
+        fi
+    done
+
+    # Warn if not in a home directory (but allow it)
+    if [[ "$remote_base" != /home/* && "$remote_base" != /Users/* ]]; then
+        log_warn "Server '$server_id': remote_base is not in a home directory: $remote_base"
+    fi
+
+    log_debug "Remote base validation passed: $remote_base"
     return 0
 }
 
