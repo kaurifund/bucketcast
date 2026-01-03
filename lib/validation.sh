@@ -384,14 +384,14 @@ validate_ssh_connection() {
     local host="$1"
     local port="${2:-22}"
     local user="$3"
-    local timeout=5
-    
+    local extra_opts="${4:-}"
+
     log_debug "Testing SSH connection to $user@$host:$port"
-    
-    if ssh -o ConnectTimeout="$timeout" \
-           -o BatchMode=yes \
-           -o StrictHostKeyChecking=accept-new \
-           -p "$port" \
+
+    # Build SSH command with extra options (includes identity file if provided)
+    # shellcheck disable=SC2086
+    if ssh -o BatchMode=yes \
+           $extra_opts \
            "${user}@${host}" \
            "echo OK" &>/dev/null; then
         log_debug "SSH connection successful"
