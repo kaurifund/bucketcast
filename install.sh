@@ -172,12 +172,12 @@ setup_python_venv() {
         return 0
     fi
 
-    # Install dependencies in venv
-    if "${venv_dir}/bin/pip" install --quiet textual rich 2>/dev/null; then
-        success "TUI dependencies installed in isolated venv"
+    # Install dependencies in venv (tomli for Python <3.11 TOML support)
+    if "${venv_dir}/bin/pip" install --quiet textual rich tomli 2>/dev/null; then
+        success "Python dependencies installed in isolated venv"
     else
-        warn "Failed to install TUI dependencies"
-        warn "TUI may not work - run: ${venv_dir}/bin/pip install textual rich"
+        warn "Failed to install Python dependencies"
+        warn "Run: ${venv_dir}/bin/pip install textual rich tomli"
     fi
 }
 

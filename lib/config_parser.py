@@ -28,7 +28,8 @@ except ImportError:
     try:
         import tomli as tomllib
     except ImportError:
-        print("ERROR: Python 3.11+ required, or install 'tomli' package", file=sys.stderr)
+        print("ERROR: TOML support not available.", file=sys.stderr)
+        print("Fix: ~/.local/share/sync-shuttle/.venv/bin/pip install tomli", file=sys.stderr)
         sys.exit(1)
 
 

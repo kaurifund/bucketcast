@@ -101,6 +101,7 @@ def load_servers(config_dir: Path) -> list[ServerConfig]:
         return servers
 
     if tomllib is None:
+        print("Warning: TOML support not available. Run: pip install tomli", file=sys.stderr)
         return servers
 
     with open(servers_file, "rb") as f:
