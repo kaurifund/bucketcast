@@ -88,19 +88,22 @@ validate_environment() {
 validate_path_within_sandbox() {
     local path_to_check="$1"
     local sandbox="${SYNC_BASE_DIR}"
-    
+
     # Resolve to absolute path
     local resolved_path
-    resolved_path=$(cd "$(dirname "$path_to_check")" 2>/dev/null && pwd)/$(basename "$path_to_check") || {
-        # If path doesn't exist yet, resolve parent
-        local parent_dir
-        parent_dir=$(dirname "$path_to_check")
-        if [[ -d "$parent_dir" ]]; then
-            resolved_path=$(cd "$parent_dir" && pwd)/$(basename "$path_to_check")
-        else
-            resolved_path="$path_to_check"
-        fi
-    }
+    local dir_part
+    dir_part=$(dirname "$path_to_check")
+
+    if [[ -d "$dir_part" ]]; then
+        # Directory exists, resolve it
+        resolved_path=$(cd "$dir_part" && pwd)/$(basename "$path_to_check")
+    elif [[ "$path_to_check" == /* ]]; then
+        # Already absolute, use as-is
+        resolved_path="$path_to_check"
+    else
+        # Relative path, make absolute
+        resolved_path="$(pwd)/$path_to_check"
+    fi
     
     # Resolve sandbox to absolute path
     local resolved_sandbox
