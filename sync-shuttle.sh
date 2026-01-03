@@ -14,7 +14,7 @@
 # Version:     1.0.0
 # Author:      Sync Shuttle Contributors
 # License:     MIT
-# Repository:  https://github.com/user/sync-shuttle
+# Repository:  https://github.com/kaurifund/bucketcast
 #===============================================================================
 #
 # DESCRIPTION:

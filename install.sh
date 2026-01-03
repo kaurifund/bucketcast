@@ -22,7 +22,7 @@ set -o pipefail
 #===============================================================================
 # CONFIGURATION
 #===============================================================================
-readonly REPO_URL="${SYNC_SHUTTLE_REPO:-https://github.com/USER/sync-shuttle}"
+readonly REPO_URL="${SYNC_SHUTTLE_REPO:-https://github.com/kaurifund/bucketcast}"
 readonly BRANCH="${SYNC_SHUTTLE_BRANCH:-main}"
 readonly INSTALL_DIR="${SYNC_SHUTTLE_DIR:-$HOME/.local/share/sync-shuttle}"
 readonly BIN_DIR="${HOME}/.local/bin"

@@ -18,7 +18,7 @@ Sync Shuttle is a command-line tool for safely transferring files between your h
 
 ```bash
 # 1. Clone or download
-git clone https://github.com/user/sync-shuttle.git
+git clone https://github.com/kaurifund/bucketcast.git
 cd sync-shuttle
 
 # 2. Initialize
@@ -53,7 +53,7 @@ cd sync-shuttle
 
 ```bash
 # Clone the repository
-git clone https://github.com/user/sync-shuttle.git
+git clone https://github.com/kaurifund/bucketcast.git
 
 # Add to PATH (optional)
 echo 'export PATH="$PATH:/path/to/sync-shuttle"' >> ~/.bashrc
