@@ -82,40 +82,42 @@ class SyncOperation:
 # CONFIGURATION LOADER
 # =============================================================================
 
+# Python 3.11+ has tomllib built-in
+try:
+    import tomllib
+except ImportError:
+    try:
+        import tomli as tomllib
+    except ImportError:
+        tomllib = None
+
+
 def load_servers(config_dir: Path) -> list[ServerConfig]:
-    """Load server configurations from config file."""
-    servers_file = config_dir / "servers.conf"
+    """Load server configurations from TOML config file."""
+    servers_file = config_dir / "servers.toml"
     servers = []
-    
+
     if not servers_file.exists():
         return servers
-    
-    # Parse the bash-style config (simplified parsing)
-    content = servers_file.read_text()
-    
-    # Find all server_* declarations
-    import re
-    
-    pattern = r'declare -A server_(\w+)=\(\s*([^)]+)\)'
-    matches = re.findall(pattern, content, re.DOTALL)
-    
-    for server_id, properties in matches:
-        # Parse properties
-        props = {}
-        for prop_match in re.finditer(r'\[(\w+)\]="([^"]*)"', properties):
-            props[prop_match.group(1)] = prop_match.group(2)
-        
+
+    if tomllib is None:
+        return servers
+
+    with open(servers_file, "rb") as f:
+        config = tomllib.load(f)
+
+    for server_id, props in config.get("servers", {}).items():
         servers.append(ServerConfig(
-            id=server_id.replace("_", "-"),
+            id=server_id,
             name=props.get("name", server_id),
             host=props.get("host", ""),
             port=int(props.get("port", 22)),
             user=props.get("user", ""),
             remote_base=props.get("remote_base", ""),
-            enabled=props.get("enabled", "false") == "true",
-            s3_backup=props.get("s3_backup", "false") == "true",
+            enabled=props.get("enabled", False),
+            s3_backup=props.get("s3_backup", False),
         ))
-    
+
     return servers
 
 
@@ -301,7 +303,7 @@ class MainScreen(Screen):
                     if servers:
                         yield ServerList(servers, id="server-list")
                     else:
-                        yield Static("No servers configured.\nEdit config/servers.conf")
+                        yield Static("No servers configured.\nEdit config/servers.toml")
                 
                 with Vertical(id="status-panel", classes="panel"):
                     yield Static("[bold]Status[/bold]", classes="panel-title")

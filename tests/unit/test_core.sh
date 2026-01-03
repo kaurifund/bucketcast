@@ -52,7 +52,7 @@ test_generate_uuid_lowercase() {
 #===============================================================================
 
 test_get_server_config_returns_error_for_missing_server() {
-    # Create minimal servers.conf without the requested server
+    # Create minimal servers.toml without the requested server
     create_test_server "existing"
     
     # This should fail for a non-existent server

@@ -50,7 +50,7 @@ test_e2e_init_creates_config_files() {
     
     # Verify config files
     assert_file_exists "${SYNC_BASE_DIR}/config/sync-shuttle.conf"
-    assert_file_exists "${SYNC_BASE_DIR}/config/servers.conf"
+    assert_file_exists "${SYNC_BASE_DIR}/config/servers.toml"
 }
 
 test_e2e_init_creates_log_files() {
@@ -171,7 +171,7 @@ test_e2e_push_requires_source() {
     "$SYNC_SHUTTLE" init &>/dev/null
     
     # Add a test server
-    cat > "${SYNC_BASE_DIR}/config/servers.conf" << 'EOF'
+    cat > "${SYNC_BASE_DIR}/config/servers.toml" << 'EOF'
 declare -A server_test=(
     [name]="Test Server"
     [host]="localhost"
@@ -196,7 +196,7 @@ test_e2e_push_validates_source_exists() {
     "$SYNC_SHUTTLE" init &>/dev/null
     
     # Add a test server
-    cat > "${SYNC_BASE_DIR}/config/servers.conf" << 'EOF'
+    cat > "${SYNC_BASE_DIR}/config/servers.toml" << 'EOF'
 declare -A server_test=(
     [name]="Test Server"
     [host]="localhost"
@@ -225,7 +225,7 @@ test_e2e_push_dry_run_makes_no_changes() {
     echo "test" > "$test_file"
     
     # Add a test server
-    cat > "${SYNC_BASE_DIR}/config/servers.conf" << 'EOF'
+    cat > "${SYNC_BASE_DIR}/config/servers.toml" << 'EOF'
 declare -A server_test=(
     [name]="Test Server"
     [host]="localhost"

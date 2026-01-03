@@ -320,7 +320,7 @@ create_test_dir() {
 # Create a mock server config
 create_mock_server_config() {
     local server_id="$1"
-    local servers_file="${TEST_SYNC_BASE}/config/servers.conf"
+    local servers_file="${TEST_SYNC_BASE}/config/servers.toml"
     
     mkdir -p "$(dirname "$servers_file")"
     
