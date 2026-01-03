@@ -112,8 +112,9 @@ validate_path_within_sandbox() {
         return 1
     }
     
-    # Check if path starts with sandbox
-    if [[ "$resolved_path" != "$resolved_sandbox"* ]]; then
+    # Check if path starts with sandbox (must be exact match or inside sandbox/)
+    # Using trailing slash to prevent /home/user/.sync-shuttleFAKE from matching
+    if [[ "$resolved_path" != "$resolved_sandbox" && "$resolved_path" != "$resolved_sandbox"/* ]]; then
         log_error "Security violation: Path is outside sandbox"
         log_error "  Path:    $resolved_path"
         log_error "  Sandbox: $resolved_sandbox"

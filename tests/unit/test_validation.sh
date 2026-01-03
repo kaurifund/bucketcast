@@ -77,15 +77,36 @@ test_validate_path_within_sandbox_rejects_symlink_escape() {
     mkdir -p "$SYNC_BASE_DIR"
     mkdir -p "${TEST_DIR}/outside"
     echo "secret" > "${TEST_DIR}/outside/secret.txt"
-    
+
     # Create symlink inside sandbox pointing outside
     ln -sf "${TEST_DIR}/outside" "${SYNC_BASE_DIR}/escape_link"
-    
+
     # The symlink target should be rejected
     if validate_path_within_sandbox "${SYNC_BASE_DIR}/escape_link/secret.txt" 2>/dev/null; then
         echo "Should reject symlink escape attempt"
         return 1
     fi
+}
+
+test_validate_path_within_sandbox_rejects_prefix_attack() {
+    export SYNC_BASE_DIR="${TEST_DIR}/sandbox"
+    mkdir -p "$SYNC_BASE_DIR"
+    mkdir -p "${TEST_DIR}/sandboxFAKE"
+
+    # Paths that start with sandbox name but are actually outside
+    local prefix_attacks=(
+        "${TEST_DIR}/sandboxFAKE/file.txt"
+        "${TEST_DIR}/sandbox_evil/file.txt"
+        "${TEST_DIR}/sandbox.bak/file.txt"
+    )
+
+    for path in "${prefix_attacks[@]}"; do
+        mkdir -p "$(dirname "$path")"
+        if validate_path_within_sandbox "$path" 2>/dev/null; then
+            echo "Should reject prefix attack: $path"
+            return 1
+        fi
+    done
 }
 
 test_validate_path_within_sandbox_handles_relative_paths() {
