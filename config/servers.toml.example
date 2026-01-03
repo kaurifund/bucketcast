@@ -6,14 +6,16 @@
 # ID must be lowercase alphanumeric with dashes (3-32 chars).
 
 [servers.example]
-name = "Example Server"
-host = "192.168.1.100"
-port = 22
-user = "myuser"
-identity_file = "~/.ssh/id_rsa"
-remote_base = "/home/myuser/.sync-shuttle"
-enabled = false
-s3_backup = false
+name = "Example Server"          # Display name (shown in TUI and logs)
+host = "192.168.1.100"           # IP address or hostname
+port = 22                        # SSH port
+user = "myuser"                  # SSH username
+identity_file = "~/.ssh/id_rsa" # SSH key path (.pem, id_rsa, id_ed25519, etc.)
+remote_base = "/home/myuser/.sync-shuttle"  # Remote sync directory
+enabled = false                  # Set to true to activate this server
+s3_backup = false                # Archive synced files to S3
+
+# More examples below:
 
 [servers.aws-prod]
 name = "AWS Production"
@@ -30,17 +32,7 @@ name = "Home Lab Server"
 host = "192.168.1.50"
 port = 22
 user = "admin"
-# identity_file not set = use default SSH key
+# identity_file = ""  # Omit to use default SSH key from agent
 remote_base = "/home/admin/.sync-shuttle"
-enabled = false
-s3_backup = false
-
-[servers.raspberry-pi]
-name = "Raspberry Pi"
-host = "raspberrypi.local"
-port = 22
-user = "pi"
-identity_file = "~/.ssh/id_rsa"
-remote_base = "/home/pi/.sync-shuttle"
 enabled = false
 s3_backup = false
