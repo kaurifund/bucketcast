@@ -1,0 +1,110 @@
+#===============================================================================
+# SYNC SHUTTLE CONFIGURATION
+#===============================================================================
+# This file is sourced by sync-shuttle.sh
+# Edit values below to customize behavior
+#
+# Location: ~/.sync-shuttle/config/sync-shuttle.conf
+#===============================================================================
+
+#-------------------------------------------------------------------------------
+# Base Paths
+#-------------------------------------------------------------------------------
+# Base directory for all sync-shuttle data
+# Default: ~/.sync-shuttle
+# Uncomment to override:
+# SYNC_BASE_DIR="$HOME/.sync-shuttle"
+
+#-------------------------------------------------------------------------------
+# SSH Settings
+#-------------------------------------------------------------------------------
+# Default SSH port if not specified per-server
+DEFAULT_SSH_PORT=22
+
+# SSH connection timeout in seconds
+SSH_TIMEOUT=10
+
+#-------------------------------------------------------------------------------
+# Rsync Settings
+#-------------------------------------------------------------------------------
+# Base rsync options (these are always applied)
+# -a = archive mode
+# -v = verbose
+# -z = compress
+# --partial = keep partial files for resume
+# --progress = show progress
+RSYNC_OPTIONS="-avz --partial --progress"
+
+# Bandwidth limit (0 = unlimited)
+# Example: "1000K" for 1000 KB/s
+RSYNC_BWLIMIT=0
+
+#-------------------------------------------------------------------------------
+# Logging
+#-------------------------------------------------------------------------------
+# Log level: DEBUG, INFO, WARN, ERROR
+LOG_LEVEL="INFO"
+
+# Maximum log file size before rotation (in MB)
+LOG_MAX_SIZE_MB=50
+
+# Number of rotated log files to keep
+LOG_KEEP_FILES=5
+
+#-------------------------------------------------------------------------------
+# S3 Integration (Optional)
+#-------------------------------------------------------------------------------
+# Enable S3 archival feature
+# Requires AWS CLI configured with appropriate credentials
+S3_ENABLED="false"
+
+# S3 bucket name for archives (required if S3_ENABLED=true)
+# S3_BUCKET="my-sync-shuttle-bucket"
+
+# S3 key prefix for all archived files
+S3_PREFIX="sync-shuttle-archive"
+
+# S3 storage class for archives
+# Options: STANDARD, STANDARD_IA, ONEZONE_IA, GLACIER, DEEP_ARCHIVE
+S3_STORAGE_CLASS="STANDARD_IA"
+
+#-------------------------------------------------------------------------------
+# Archive Settings
+#-------------------------------------------------------------------------------
+# Days to retain local archives before cleanup
+# Set to 0 to disable automatic cleanup
+ARCHIVE_RETENTION_DAYS=30
+
+# Enable archive compression (gzip)
+ARCHIVE_COMPRESS="true"
+
+#-------------------------------------------------------------------------------
+# Transfer Limits
+#-------------------------------------------------------------------------------
+# Maximum single transfer size
+# Examples: 100M, 1G, 10G
+MAX_TRANSFER_SIZE="10G"
+
+# Maximum number of files per transfer
+MAX_FILES_PER_TRANSFER=10000
+
+#-------------------------------------------------------------------------------
+# Security Settings
+#-------------------------------------------------------------------------------
+# Require confirmation for any overwrite operation
+REQUIRE_OVERWRITE_CONFIRM="true"
+
+# Enable additional path validation
+STRICT_PATH_VALIDATION="true"
+
+#-------------------------------------------------------------------------------
+# User Interface
+#-------------------------------------------------------------------------------
+# Enable colored output
+COLOR_OUTPUT="true"
+
+# Show transfer progress bars
+SHOW_PROGRESS="true"
+
+# Beep on completion (if terminal supports)
+BEEP_ON_COMPLETE="false"

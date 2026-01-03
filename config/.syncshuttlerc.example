@@ -1,0 +1,79 @@
+#===============================================================================
+# SYNC SHUTTLE - USER CONFIGURATION
+#===============================================================================
+# User-level defaults for sync-shuttle.
+#
+# Location: ~/.syncshuttlerc (loaded automatically if present)
+#
+# This file is sourced BEFORE the main config, allowing you to set
+# user-specific defaults that can be overridden per-project.
+#
+# Priority (lowest to highest):
+#   1. Built-in defaults
+#   2. ~/.syncshuttlerc (this file)
+#   3. ~/.sync-shuttle/config/sync-shuttle.conf
+#   4. Command-line flags
+#===============================================================================
+
+#-------------------------------------------------------------------------------
+# User Preferences
+#-------------------------------------------------------------------------------
+
+# Your preferred editor for config files
+# SYNC_SHUTTLE_EDITOR="${EDITOR:-nano}"
+
+# Default behavior flags
+# SYNC_SHUTTLE_DRY_RUN_DEFAULT="false"    # Always start in dry-run mode
+# SYNC_SHUTTLE_VERBOSE_DEFAULT="false"    # Verbose output by default
+# SYNC_SHUTTLE_CONFIRM_FORCE="true"       # Require confirmation for --force
+
+#-------------------------------------------------------------------------------
+# SSH Defaults
+#-------------------------------------------------------------------------------
+
+# Default SSH key (used if server has no identity_file set)
+# SSH_DEFAULT_IDENTITY=""                  # e.g., "~/.ssh/id_ed25519"
+
+# SSH connection timeout (seconds)
+# SSH_CONNECT_TIMEOUT=10
+
+# SSH options (added to all SSH/rsync commands)
+# SSH_EXTRA_OPTIONS=""                     # e.g., "-o StrictHostKeyChecking=no"
+
+#-------------------------------------------------------------------------------
+# Transfer Defaults
+#-------------------------------------------------------------------------------
+
+# Default rsync bandwidth limit (0 = unlimited)
+# RSYNC_BWLIMIT=0                          # e.g., "1000" for 1000 KB/s
+
+# Enable compression by default
+# RSYNC_COMPRESS="true"
+
+# Preserve extended attributes
+# RSYNC_XATTRS="false"
+
+#-------------------------------------------------------------------------------
+# Notification Preferences
+#-------------------------------------------------------------------------------
+
+# Desktop notifications (requires notify-send or similar)
+# NOTIFY_ON_COMPLETE="false"
+
+# Sound on completion
+# BEEP_ON_COMPLETE="false"
+
+#-------------------------------------------------------------------------------
+# Aliases / Shortcuts
+#-------------------------------------------------------------------------------
+# Define quick aliases for frequently used servers
+# These can be used with: sync-shuttle push -s @work
+#
+# Example:
+# SYNC_SHUTTLE_ALIAS_WORK="my-work-server"
+# SYNC_SHUTTLE_ALIAS_HOME="home-nas"
+# SYNC_SHUTTLE_ALIAS_PI="raspberry-pi-4"
+
+#===============================================================================
+# END OF USER CONFIGURATION
+#===============================================================================

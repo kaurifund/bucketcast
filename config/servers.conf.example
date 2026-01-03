@@ -1,0 +1,115 @@
+#===============================================================================
+# SYNC SHUTTLE - SERVER DEFINITIONS
+#===============================================================================
+# Define your servers below. Each server is a bash associative array.
+#
+# Location: ~/.sync-shuttle/config/servers.conf
+#
+# SCHEMA:
+#   declare -A server_<id>=(
+#       [name]="Display Name"           # Human-readable name
+#       [host]="hostname.or.ip"         # IP address or hostname
+#       [port]="22"                     # SSH port (default: 22)
+#       [user]="username"               # SSH username
+#       [identity_file]=""              # SSH key path (.pem, id_rsa, etc.) - optional
+#       [remote_base]="/path/to/sync"   # Remote sync-shuttle directory
+#       [enabled]="true"                # Enable/disable this server
+#       [s3_backup]="false"             # Archive to S3 after sync
+#   )
+#
+# SSH KEY EXAMPLES:
+#   [identity_file]=""                          # Use default SSH agent/keys
+#   [identity_file]="~/.ssh/id_rsa"             # Standard SSH key
+#   [identity_file]="~/.ssh/aws-server.pem"     # AWS .pem file
+#   [identity_file]="/home/user/.ssh/work_key"  # Absolute path
+#
+# RULES:
+#   - Server ID must be lowercase alphanumeric with optional dashes
+#   - ID must be 3-32 characters long
+#   - No consecutive dashes (-- is not allowed)
+#   - ID cannot start or end with a dash
+#
+# EXAMPLES:
+#   Valid:   server_my-dev-box, server_prod01, server_homelab
+#   Invalid: server_My-Server, server_a, server--double, server-
+#===============================================================================
+
+#-------------------------------------------------------------------------------
+# EXAMPLE SERVERS (disabled by default)
+#-------------------------------------------------------------------------------
+
+# Example: Development Server
+# A typical dev server setup
+declare -A server_example_dev=(
+    [name]="Development Server"
+    [host]="dev.example.com"
+    [port]="22"
+    [user]="developer"
+    [identity_file]=""
+    [remote_base]="/home/developer/.sync-shuttle"
+    [enabled]="false"
+    [s3_backup]="false"
+)
+
+# Example: AWS EC2 Instance
+# Using a .pem key file
+declare -A server_example_aws=(
+    [name]="AWS EC2 Instance"
+    [host]="ec2-xx-xx-xx-xx.compute-1.amazonaws.com"
+    [port]="22"
+    [user]="ec2-user"
+    [identity_file]="~/.ssh/my-aws-key.pem"
+    [remote_base]="/home/ec2-user/.sync-shuttle"
+    [enabled]="false"
+    [s3_backup]="true"
+)
+
+# Example: Home NAS
+# Network attached storage at home
+declare -A server_example_nas=(
+    [name]="Home NAS"
+    [host]="192.168.1.100"
+    [port]="22"
+    [user]="admin"
+    [remote_base]="/volume1/sync-shuttle"
+    [enabled]="false"
+    [s3_backup]="true"
+)
+
+# Example: Production Web Server
+# A production server (be extra careful!)
+declare -A server_example_prod=(
+    [name]="Production Web Server"
+    [host]="prod.example.com"
+    [port]="2222"
+    [user]="deploy"
+    [remote_base]="/var/sync-shuttle"
+    [enabled]="false"
+    [s3_backup]="true"
+)
+
+# Example: Raspberry Pi
+# A home automation server
+declare -A server_example_pi=(
+    [name]="Raspberry Pi"
+    [host]="raspberrypi.local"
+    [port]="22"
+    [user]="pi"
+    [remote_base]="/home/pi/.sync-shuttle"
+    [enabled]="false"
+    [s3_backup]="false"
+)
+
+#===============================================================================
+# YOUR SERVERS - ADD BELOW THIS LINE
+#===============================================================================
+# Copy one of the examples above and modify it for your servers.
+# Remember to:
+#   1. Change the server ID (server_YOUR_ID)
+#   2. Update all the connection details
+#   3. Set [enabled]="true" when ready to use
+#
+# Tip: Test your SSH connection first:
+#   ssh -p PORT USER@HOST 'echo "Connection successful"'
+#===============================================================================
+

@@ -1,0 +1,8 @@
+# Sync Shuttle TUI Dependencies
+# Install with: pip install -r requirements.txt
+
+# Terminal UI framework
+textual>=0.40.0
+
+# Rich text formatting
+rich>=13.0.0

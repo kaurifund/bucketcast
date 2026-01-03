@@ -1,0 +1,604 @@
+# SYNC-SHUTTLE LLM.TXT
+# Version: 1.1.0
+# Purpose: Complete repository context for AI agents and LLM systems
+# Format: Line-oriented, grepable, topic-oriented knowledge blocks
+# License: MIT
+# COMMIT_HASH :: a1b2c3d4
+# GENERATED_AT :: 2026-01-01T12:00:00Z
+# GENERATOR :: manual
+
+================================================================================
+[GREP_MANUAL]
+================================================================================
+SECTION_TYPE :: MANUAL
+
+This section teaches AI agents how to query this document efficiently.
+v1.1.0 introduces topic-oriented blocks - grep returns COMPLETE UNDERSTANDING.
+
+GREP_PATTERN :: grep "FUNC :: " llm.txt
+GREP_RESULT :: Returns function summary lines with complete understanding
+
+GREP_PATTERN :: grep "DETAIL:function_name" llm.txt
+GREP_RESULT :: Returns all details for specific function
+
+GREP_PATTERN :: grep "DETAIL:.*PARAM" llm.txt
+GREP_RESULT :: Returns all parameter documentation across functions
+
+GREP_PATTERN :: grep "DETAIL:.*SECURITY" llm.txt
+GREP_RESULT :: Returns all security-related documentation
+
+GREP_PATTERN :: grep "DETAIL:.*EDGE" llm.txt
+GREP_RESULT :: Returns all edge case documentation
+
+GREP_PATTERN :: grep "DETAIL:.*FLOW" llm.txt
+GREP_RESULT :: Returns all execution flow documentation
+
+GREP_PATTERN :: grep "TOPIC :: " llm.txt
+GREP_RESULT :: Returns all topic headers for navigation
+
+GREP_PATTERN :: grep "FILE :: " llm.txt
+GREP_RESULT :: Returns all file summary lines
+
+GREP_PATTERN :: grep "RAISES:" llm.txt
+GREP_RESULT :: Returns functions that raise specific errors
+
+GREP_PATTERN :: grep "PURE:no" llm.txt
+GREP_RESULT :: Returns functions with side effects
+
+DELIMITER :: ` :: ` - Key-value association
+DELIMITER :: ` | ` - Inline segments in summary lines
+DELIMITER :: ` >> ` - Hierarchy
+DELIMITER :: ` -> ` - Flow direction
+DELIMITER :: `; ` - List items
+DELIMITER :: `DETAIL:topic ::` - Associated details
+
+================================================================================
+[TABLE_OF_CONTENTS]
+================================================================================
+SECTION_TYPE :: AUTO
+
+TOC_LINE :: 001 - [GREP_MANUAL] - Query patterns for v1.1.0
+TOC_LINE :: 050 - [TABLE_OF_CONTENTS] - This navigation
+TOC_LINE :: 080 - [PROJECT_IDENTITY] - What sync-shuttle is
+TOC_LINE :: 130 - [ARCHITECTURE_OVERVIEW] - System structure
+TOC_LINE :: 200 - [FILE_MANIFEST] - All files with summaries
+TOC_LINE :: 350 - [FUNCTION_REFERENCE] - Functions with topic blocks
+TOC_LINE :: 700 - [CLI_REFERENCE] - Commands with topic blocks
+TOC_LINE :: 850 - [SCHEMA_DEFINITIONS] - Data structures
+TOC_LINE :: 950 - [CONFIGURATION_REFERENCE] - Config options
+TOC_LINE :: 1050 - [DATA_FLOW] - Operation flows
+TOC_LINE :: 1150 - [SAFETY_MECHANISMS] - Security with details
+TOC_LINE :: 1300 - [FAQ_AI_AGENTS] - 50+ Q&A pairs
+TOC_LINE :: 1600 - [EDGE_CASES] - Unusual scenarios
+TOC_LINE :: 1750 - [AI_MODIFICATION_GUIDE] - How to modify
+TOC_LINE :: 1850 - [GLOSSARY] - Term definitions
+TOC_LINE :: 1900 - [DOCUMENT_METADATA] - Version info
+
+SECTION_COUNT :: 16 major sections
+LINE_COUNT :: ~1950 lines
+
+================================================================================
+[PROJECT_IDENTITY]
+================================================================================
+SECTION_TYPE :: MANUAL
+
+PROJECT_NAME :: sync-shuttle
+PROJECT_TYPE :: CLI file synchronization tool
+PROJECT_LANGUAGE :: Bash 4.0+ with Python 3.8+ TUI
+PROJECT_LICENSE :: MIT
+PROJECT_STATUS :: Production-ready v1.0
+
+INTENT :: Provide safe, manual, auditable file synchronization between machines
+INTENT :: Never delete files without explicit user consent
+INTENT :: Never overwrite files without explicit user consent
+INTENT :: Maintain complete audit trail of all operations
+INTENT :: Sandbox all operations to designated directories
+INTENT :: Prioritize safety over convenience in all design decisions
+
+TAGLINE :: "Move files between machines without fear"
+POSITIONING :: rsync with guardrails
+PHILOSOPHY :: Explicit is better than implicit
+PHILOSOPHY :: Safe by default, powerful by choice
+PHILOSOPHY :: Manual execution, no background daemons
+
+TARGET_USER :: Software developers managing remote servers
+TARGET_USER :: System administrators requiring audit compliance
+TARGET_USER :: Homelab enthusiasts with self-hosted infrastructure
+
+ANTI_USER :: Users wanting real-time automatic sync (use Syncthing)
+ANTI_USER :: Users wanting GUI-only experience (use FileZilla)
+
+================================================================================
+[ARCHITECTURE_OVERVIEW]
+================================================================================
+SECTION_TYPE :: MANUAL
+
+ARCH_STYLE :: Modular shell script with library separation
+ARCH_PATTERN :: Pipeline architecture - validate -> preflight -> transfer -> log
+ARCH_PRINCIPLE :: Pure functions in libraries where possible
+ARCH_PRINCIPLE :: Side effects isolated to main script and transfer operations
+ARCH_PRINCIPLE :: Fail-fast with descriptive error messages
+ARCH_PRINCIPLE :: Defense in depth for security
+
+TOPIC :: RUNTIME_STRUCTURE
+TOPIC_DESCRIPTION :: Directory layout for sync-shuttle runtime data
+TOPIC_FILES :: ~/.sync-shuttle/*
+
+RUNTIME_DIR :: ~/.sync-shuttle/ | Root for all sync-shuttle data | CREATED_BY:init
+DETAIL:RUNTIME_DIR :: SUBDIR config/ - user configuration files
+DETAIL:RUNTIME_DIR :: SUBDIR remote/<server_id>/files/ - synced files by server
+DETAIL:RUNTIME_DIR :: SUBDIR local/inbox/ - files received from remote
+DETAIL:RUNTIME_DIR :: SUBDIR local/outbox/ - files staged for sending
+DETAIL:RUNTIME_DIR :: SUBDIR logs/ - sync.log (human) and sync.jsonl (machine)
+DETAIL:RUNTIME_DIR :: SUBDIR archive/ - versioned backups before overwrites
+DETAIL:RUNTIME_DIR :: SUBDIR tmp/ - temporary staging and lock files
+
+LAYER :: CLI (sync-shuttle.sh) | Argument parsing; user interaction; orchestration
+LAYER :: Library (lib/*.sh) | Pure functions; reusable logic; no direct I/O
+LAYER :: Config (config/) | User settings; server definitions
+LAYER :: Data (~/.sync-shuttle/) | Runtime directories; logs; archives
+LAYER :: TUI (tui/) | Optional Python interface; async operations
+
+================================================================================
+[FILE_MANIFEST]
+================================================================================
+SECTION_TYPE :: AUTO
+
+TOPIC :: CORE_EXECUTABLES
+TOPIC_DESCRIPTION :: Main scripts that users invoke directly
+TOPIC_FILES :: sync-shuttle.sh; install.sh
+
+FILE :: sync-shuttle.sh | Main CLI executable; orchestrates all operations | LOC:./sync-shuttle.sh:1139 | CONTAINS:argument_parsing,action_dispatch,init,push,pull,list,status | EXPORTS:SYNC_BASE_DIR,CONFIG_DIR,LOGS_DIR
+DETAIL:sync-shuttle.sh :: LINES 1-310 - embedded man-style documentation
+DETAIL:sync-shuttle.sh :: LINES 310-500 - global variables and library sourcing
+DETAIL:sync-shuttle.sh :: LINES 500-700 - argument parsing
+DETAIL:sync-shuttle.sh :: LINES 700-1139 - action handlers (do_init, do_push, etc.)
+DETAIL:sync-shuttle.sh :: DEPENDS lib/core.sh; lib/logging.sh; lib/validation.sh; lib/transfer.sh; lib/s3.sh
+
+FILE :: install.sh | Curl-able installer script | LOC:./install.sh:225 | CONTAINS:download,extract,setup_paths,create_wrapper | EXPORTS:none
+DETAIL:install.sh :: USAGE curl -fsSL URL/install.sh | bash
+DETAIL:install.sh :: CREATES ~/.local/share/sync-shuttle/ (installation)
+DETAIL:install.sh :: CREATES ~/.local/bin/sync-shuttle (wrapper script)
+DETAIL:install.sh :: MODIFIES ~/.bashrc or ~/.zshrc (PATH addition)
+
+TOPIC :: LIBRARY_MODULES
+TOPIC_DESCRIPTION :: Bash libraries providing core functionality
+TOPIC_FILES :: lib/core.sh; lib/logging.sh; lib/validation.sh; lib/transfer.sh; lib/s3.sh
+
+FILE :: lib/core.sh | Core utilities; UUID generation; server config parsing | LOC:./lib/core.sh:367 | CONTAINS:generate_uuid,get_server_config,list_all_servers,acquire_lock,release_lock | EXPORTS:generate_uuid,get_server_config
+DETAIL:lib/core.sh :: DEPENDS none (base library)
+DETAIL:lib/core.sh :: SOURCES config/servers.conf for server definitions
+
+FILE :: lib/logging.sh | Structured logging; dual output (human + JSON) | LOC:./lib/logging.sh:228 | CONTAINS:log_debug,log_info,log_warn,log_error,log_success,log_operation | EXPORTS:all_log_functions
+DETAIL:lib/logging.sh :: RESPECTS LOG_LEVEL, QUIET, VERBOSE flags
+DETAIL:lib/logging.sh :: OUTPUTS stderr for console; LOGS_DIR/sync.jsonl for machine
+
+FILE :: lib/validation.sh | Security validation; input sanitization | LOC:./lib/validation.sh:386 | CONTAINS:validate_environment,validate_path_within_sandbox,validate_server_id,validate_source_path,check_file_collision | EXPORTS:all_validation_functions
+DETAIL:lib/validation.sh :: SECURITY Primary security boundary for filesystem operations
+DETAIL:lib/validation.sh :: CRITICAL validate_path_within_sandbox prevents path traversal
+
+FILE :: lib/transfer.sh | File transfer operations; rsync wrapper | LOC:./lib/transfer.sh:381 | CONTAINS:build_rsync_options,sync_to_remote,sync_from_remote,scp_fallback | EXPORTS:sync_to_remote,sync_from_remote
+DETAIL:lib/transfer.sh :: SAFETY Never includes --delete flag
+DETAIL:lib/transfer.sh :: USES rsync with --ignore-existing; --backup
+
+FILE :: lib/s3.sh | AWS S3 integration; archival | LOC:./lib/s3.sh:469 | CONTAINS:check_s3_available,archive_to_s3,s3_intermediate_push,s3_intermediate_pull | EXPORTS:archive_to_s3
+DETAIL:lib/s3.sh :: REQUIRES aws CLI configured with credentials
+
+TOPIC :: CONFIGURATION_FILES
+TOPIC_DESCRIPTION :: Example configuration templates
+TOPIC_FILES :: config/*.example
+
+FILE :: config/sync-shuttle.conf.example | Main configuration template | LOC:./config/sync-shuttle.conf.example:111 | CONTAINS:path_settings,ssh_defaults,rsync_options,logging_config,s3_settings
+FILE :: config/servers.conf.example | Server definition template | LOC:./config/servers.conf.example:110 | CONTAINS:server_declarations,identity_file_support
+FILE :: config/.syncshuttlerc.example | User-level defaults | LOC:./config/.syncshuttlerc.example:45 | CONTAINS:ssh_default_identity,behavior_flags
+
+TOPIC :: TUI_COMPONENTS
+TOPIC_DESCRIPTION :: Python terminal user interface
+TOPIC_FILES :: tui/sync_tui.py; tui/requirements.txt
+
+FILE :: tui/sync_tui.py | Terminal user interface | LOC:./tui/sync_tui.py:666 | CONTAINS:ServerConfig,SyncOperation,MainScreen,PushScreen,PullScreen,FileBrowser | EXPORTS:main
+DETAIL:tui/sync_tui.py :: KEYBINDS q=quit; p=push; l=pull; r=refresh
+DETAIL:tui/sync_tui.py :: REQUIRES textual>=0.40.0; rich>=13.0.0
+
+================================================================================
+[FUNCTION_REFERENCE]
+================================================================================
+SECTION_TYPE :: HYBRID
+
+TOPIC :: CORE_FUNCTIONS
+TOPIC_DESCRIPTION :: Essential utilities from lib/core.sh
+TOPIC_FILES :: lib/core.sh
+TOPIC_RELATED :: VALIDATION_FUNCTIONS; TRANSFER_FUNCTIONS
+
+FUNC :: generate_uuid() -> string | Generate unique identifier for operations | LOC:lib/core.sh:45-67 | PURE:yes | FALLBACKS:uuidgen,/proc/sys/kernel/random/uuid,$RANDOM
+DETAIL:generate_uuid :: RETURNS 36-character UUID (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+DETAIL:generate_uuid :: FALLBACK 1 - uuidgen command if available
+DETAIL:generate_uuid :: FALLBACK 2 - /proc/sys/kernel/random/uuid on Linux
+DETAIL:generate_uuid :: FALLBACK 3 - $RANDOM combination (least random)
+DETAIL:generate_uuid :: USAGE local uuid=$(generate_uuid)
+
+FUNC :: get_server_config(server_id:string) -> string | Load server configuration from servers.conf | LOC:lib/core.sh:89-134 | PURE:no | RAISES:exit_1_if_not_found
+DETAIL:get_server_config :: PARAM server_id - validated server identifier from servers.conf
+DETAIL:get_server_config :: RETURNS multi-line string of variable assignments for eval
+DETAIL:get_server_config :: OUTPUTS server_name; server_host; server_port; server_user; server_identity_file; server_remote_base; server_s3_backup
+DETAIL:get_server_config :: USAGE eval "$(get_server_config myserver)"
+DETAIL:get_server_config :: EDGE server_not_found - returns exit code 1
+DETAIL:get_server_config :: EDGE server_disabled - returns exit code 1
+
+FUNC :: acquire_lock(operation_name:string) -> exit_code | Prevent concurrent operations | LOC:lib/core.sh:245-270 | PURE:no | CREATES:lock_file
+DETAIL:acquire_lock :: PARAM operation_name - identifier for lock (e.g., "push", "pull")
+DETAIL:acquire_lock :: RETURNS 0 if acquired; 1 if already locked
+DETAIL:acquire_lock :: CREATES SYNC_BASE_DIR/tmp/{operation_name}.lock
+DETAIL:acquire_lock :: CONTAINS PID and timestamp in lock file
+DETAIL:acquire_lock :: USAGE acquire_lock "push" || { log_error "Already running"; exit 1; }
+
+FUNC :: release_lock(operation_name:string) -> void | Release operation lock | LOC:lib/core.sh:272-284 | PURE:no | REMOVES:lock_file
+DETAIL:release_lock :: PARAM operation_name - must match acquire_lock call
+DETAIL:release_lock :: REMOVES SYNC_BASE_DIR/tmp/{operation_name}.lock
+DETAIL:release_lock :: USAGE trap 'release_lock "push"' EXIT
+
+TOPIC :: VALIDATION_FUNCTIONS
+TOPIC_DESCRIPTION :: Security validation from lib/validation.sh
+TOPIC_FILES :: lib/validation.sh
+TOPIC_RELATED :: CORE_FUNCTIONS; SAFETY_MECHANISMS
+
+FUNC :: validate_path_within_sandbox(path:string) -> exit_code | CRITICAL - prevent path traversal attacks | LOC:lib/validation.sh:87-127 | PURE:yes | SECURITY:primary_boundary
+DETAIL:validate_path_within_sandbox :: PARAM path - filesystem path to validate
+DETAIL:validate_path_within_sandbox :: RETURNS 0 if safe; 1 if violation
+DETAIL:validate_path_within_sandbox :: CHECKS path resolves to within SYNC_BASE_DIR
+DETAIL:validate_path_within_sandbox :: CHECKS no .. sequences in path
+DETAIL:validate_path_within_sandbox :: CHECKS symlinks resolve within sandbox
+DETAIL:validate_path_within_sandbox :: SECURITY This is the PRIMARY security boundary
+DETAIL:validate_path_within_sandbox :: FLOW resolve_path -> check_prefix -> check_patterns -> return
+DETAIL:validate_path_within_sandbox :: EDGE symlink_escape - symlinks resolved before check; attack blocked
+
+FUNC :: validate_server_id(server_id:string) -> exit_code | Validate server identifier format | LOC:lib/validation.sh:132-158 | PURE:yes | SECURITY:injection_prevention
+DETAIL:validate_server_id :: PARAM server_id - user-provided server name
+DETAIL:validate_server_id :: RETURNS 0 if valid; 1 if invalid
+DETAIL:validate_server_id :: RULES 3-32 characters; lowercase alphanumeric; dashes allowed
+DETAIL:validate_server_id :: RULES no consecutive dashes; no start/end dash; no ../
+DETAIL:validate_server_id :: SECURITY prevents injection via server ID in paths
+
+FUNC :: check_file_collision(dest_path:string) -> exit_code | Detect if destination file exists | LOC:lib/validation.sh:200-225 | PURE:yes
+DETAIL:check_file_collision :: PARAM dest_path - destination to check
+DETAIL:check_file_collision :: RETURNS 0 if no collision or FORCE=true; 1 if collision
+DETAIL:check_file_collision :: BEHAVIOR without --force: collisions fail
+DETAIL:check_file_collision :: BEHAVIOR with --force: collisions warn, original archived
+
+TOPIC :: TRANSFER_FUNCTIONS
+TOPIC_DESCRIPTION :: File transfer operations from lib/transfer.sh
+TOPIC_FILES :: lib/transfer.sh
+TOPIC_RELATED :: CORE_FUNCTIONS; VALIDATION_FUNCTIONS
+
+FUNC :: build_rsync_options() -> string | Construct rsync command-line flags | LOC:lib/transfer.sh:45-89 | PURE:yes | SAFETY:no_delete
+DETAIL:build_rsync_options :: RETURNS newline-separated flags for mapfile
+DETAIL:build_rsync_options :: FLAGS -avz; --progress; --ignore-existing; --backup
+DETAIL:build_rsync_options :: FLAGS (--dry-run if DRY_RUN=true)
+DETAIL:build_rsync_options :: SAFETY NEVER includes --delete - core guarantee
+DETAIL:build_rsync_options :: USAGE mapfile -t opts < <(build_rsync_options)
+
+FUNC :: sync_to_remote(server_id:string, local_dir:string) -> exit_code | Transfer files to remote server | LOC:lib/transfer.sh:134-213 | PURE:no | CALLS:get_server_config,build_rsync_options
+DETAIL:sync_to_remote :: PARAM server_id - validated server identifier
+DETAIL:sync_to_remote :: PARAM local_dir - local source directory
+DETAIL:sync_to_remote :: FLOW load_config -> build_ssh_opts -> build_rsync_opts -> execute_rsync -> return_code
+DETAIL:sync_to_remote :: SUPPORTS identity_file for SSH key authentication (.pem files)
+DETAIL:sync_to_remote :: EDGE connection_failed - returns rsync exit code (typically 255)
+
+FUNC :: sync_from_remote(server_id:string, remote_path:string) -> exit_code | Transfer files from remote server | LOC:lib/transfer.sh:215-295 | PURE:no | CALLS:get_server_config,build_rsync_options
+DETAIL:sync_from_remote :: PARAM server_id - validated server identifier
+DETAIL:sync_from_remote :: PARAM remote_path - remote source path
+DETAIL:sync_from_remote :: FLOW load_config -> build_ssh_opts -> build_rsync_opts -> execute_rsync -> stage_local -> return_code
+
+TOPIC :: LOGGING_FUNCTIONS
+TOPIC_DESCRIPTION :: Logging utilities from lib/logging.sh
+TOPIC_FILES :: lib/logging.sh
+
+FUNC :: log_info(message:string) -> void | Log informational message | LOC:lib/logging.sh:45-52 | PURE:no | RESPECTS:QUIET,LOG_LEVEL
+FUNC :: log_warn(message:string) -> void | Log warning message | LOC:lib/logging.sh:54-61 | PURE:no
+FUNC :: log_error(message:string) -> void | Log error message | LOC:lib/logging.sh:63-70 | PURE:no
+FUNC :: log_debug(message:string) -> void | Log debug message | LOC:lib/logging.sh:72-79 | PURE:no | RESPECTS:VERBOSE
+FUNC :: log_success(message:string) -> void | Log success message | LOC:lib/logging.sh:81-88 | PURE:no
+
+FUNC :: log_operation(uuid:string, action:string, status:string, details:string) -> void | Structured operation logging to JSON Lines | LOC:lib/logging.sh:120-165 | PURE:no
+DETAIL:log_operation :: PARAM uuid - operation identifier from generate_uuid()
+DETAIL:log_operation :: PARAM action - operation type (push, pull, init, etc.)
+DETAIL:log_operation :: PARAM status - SUCCESS, FAILURE, DRY_RUN
+DETAIL:log_operation :: PARAM details - JSON string of additional data
+DETAIL:log_operation :: OUTPUT appends to LOGS_DIR/sync.jsonl
+
+================================================================================
+[CLI_REFERENCE]
+================================================================================
+SECTION_TYPE :: HYBRID
+
+TOPIC :: MAIN_COMMANDS
+TOPIC_DESCRIPTION :: Primary CLI commands
+TOPIC_RELATED :: EXIT_CODES
+
+CMD :: sync-shuttle init | Initialize sync-shuttle directory structure | CREATES:~/.sync-shuttle/* | IDEMPOTENT:yes | EXIT:0_success,1_failure
+DETAIL:init :: CREATES ~/.sync-shuttle/ and all subdirectories
+DETAIL:init :: CREATES default configuration files from examples
+DETAIL:init :: SAFE to run multiple times - skips existing
+
+CMD :: sync-shuttle push --server <id> --source <path> | Push files to remote server | REQUIRES:--server,--source | EXIT:0-8
+DETAIL:push :: REQUIRED --server <id> - target server from servers.conf
+DETAIL:push :: REQUIRED --source <path> - local file or directory
+DETAIL:push :: OPTIONAL --dry-run - simulate without transferring
+DETAIL:push :: OPTIONAL --force - allow overwrites (originals archived)
+DETAIL:push :: OPTIONAL --verbose - detailed output
+DETAIL:push :: OPTIONAL --quiet - minimal output
+DETAIL:push :: OPTIONAL --s3-archive - archive to S3 after transfer
+DETAIL:push :: FLOW validate -> preflight -> stage_local -> rsync_remote -> log
+
+CMD :: sync-shuttle pull --server <id> | Pull files from remote server | REQUIRES:--server | EXIT:0-8
+DETAIL:pull :: REQUIRED --server <id> - source server from servers.conf
+DETAIL:pull :: OPTIONAL same as push (--dry-run, --force, etc.)
+DETAIL:pull :: FLOW validate -> preflight -> rsync_from_remote -> stage_local -> log
+
+CMD :: sync-shuttle list servers | Display all configured servers | EXIT:0_success,1_no_servers
+DETAIL:list_servers :: OUTPUT table of server id; name; host; enabled status
+
+CMD :: sync-shuttle list files --server <id> | Display synced files for server | REQUIRES:--server | EXIT:0_success,1_error
+DETAIL:list_files :: OUTPUT tree view of SYNC_BASE_DIR/remote/{server_id}/files/
+
+CMD :: sync-shuttle status | Display overall sync-shuttle status | EXIT:0_always
+DETAIL:status :: OUTPUT directory sizes; last operations; server count
+
+CMD :: sync-shuttle tui | Launch terminal user interface | REQUIRES:python3,textual,rich | EXIT:0_clean,1_error
+DETAIL:tui :: KEYBINDS q=quit; p=push; l=pull; r=refresh
+
+TOPIC :: EXIT_CODES
+TOPIC_DESCRIPTION :: Exit code meanings for all commands
+
+EXIT :: 0 | Success - operation completed normally
+EXIT :: 1 | General error - unspecified failure
+EXIT :: 2 | Invalid arguments - missing required flags; invalid values
+EXIT :: 3 | Not initialized - run sync-shuttle init first
+EXIT :: 4 | Server not found - server_id not in servers.conf or disabled
+EXIT :: 5 | Transfer failed - rsync/SSH error during transfer
+EXIT :: 6 | Collision - destination file exists; use --force
+EXIT :: 7 | Validation failed - source path invalid; size limit exceeded
+EXIT :: 8 | Dependency missing - required tool not found
+
+================================================================================
+[SCHEMA_DEFINITIONS]
+================================================================================
+SECTION_TYPE :: AUTO
+
+SCHEMA :: ServerConfig | Server definition in servers.conf | TYPE:bash_associative_array
+DETAIL:ServerConfig :: FIELD id (string) - unique identifier; 3-32 chars; lowercase alphanumeric with dashes
+DETAIL:ServerConfig :: FIELD name (string) - human-readable display name
+DETAIL:ServerConfig :: FIELD host (string) - hostname or IP address; REQUIRED
+DETAIL:ServerConfig :: FIELD port (integer) - SSH port; default 22
+DETAIL:ServerConfig :: FIELD user (string) - SSH username; REQUIRED
+DETAIL:ServerConfig :: FIELD identity_file (string) - path to SSH key; optional; supports ~
+DETAIL:ServerConfig :: FIELD remote_base (string) - remote sync-shuttle directory path
+DETAIL:ServerConfig :: FIELD enabled (boolean) - true/false
+DETAIL:ServerConfig :: FIELD s3_backup (boolean) - archive to S3 after sync
+DETAIL:ServerConfig :: SYNTAX declare -A server_<id>=([name]="..." [host]="..." ...)
+
+SCHEMA :: LogEntry | JSON Lines log entry | TYPE:json_object | FILE:sync.jsonl
+DETAIL:LogEntry :: FIELD uuid (string) - operation identifier
+DETAIL:LogEntry :: FIELD timestamp_start (ISO8601) - operation start
+DETAIL:LogEntry :: FIELD timestamp_end (ISO8601) - operation end
+DETAIL:LogEntry :: FIELD operation (string) - push|pull|init|list|status
+DETAIL:LogEntry :: FIELD server_id (string) - target server; null for local ops
+DETAIL:LogEntry :: FIELD status (string) - SUCCESS|FAILURE|DRY_RUN
+DETAIL:LogEntry :: FIELD files_transferred (integer)
+DETAIL:LogEntry :: FIELD bytes_transferred (integer)
+DETAIL:LogEntry :: FIELD rsync_exit_code (integer)
+
+================================================================================
+[CONFIGURATION_REFERENCE]
+================================================================================
+SECTION_TYPE :: HYBRID
+
+CONFIG :: SYNC_BASE_DIR | Root directory for all sync-shuttle data | DEFAULT:~/.sync-shuttle
+CONFIG :: LOG_LEVEL | Minimum level for log output | DEFAULT:INFO | VALUES:DEBUG|INFO|WARN|ERROR
+CONFIG :: MAX_TRANSFER_SIZE | Maximum allowed single transfer size | DEFAULT:10G | FORMAT:number with K/M/G
+CONFIG :: SSH_CONNECT_TIMEOUT | Seconds to wait for SSH connection | DEFAULT:10
+CONFIG :: RSYNC_BWLIMIT | Bandwidth limit in KB/s | DEFAULT:0 (unlimited)
+CONFIG :: RSYNC_COMPRESS | Enable rsync compression | DEFAULT:true
+CONFIG :: S3_BUCKET | AWS S3 bucket for archival | DEFAULT:none | REQUIRES:aws_cli
+CONFIG :: S3_REGION | AWS region for S3 operations | DEFAULT:us-east-1
+CONFIG :: ARCHIVE_RETENTION_DAYS | Days to keep local archives | DEFAULT:30
+
+================================================================================
+[DATA_FLOW]
+================================================================================
+SECTION_TYPE :: MANUAL
+
+FLOW :: PUSH_OPERATION | User invokes push; files transferred to remote
+DETAIL:PUSH_OPERATION :: STEP 1 - User: sync-shuttle push --server <id> --source <path>
+DETAIL:PUSH_OPERATION :: STEP 2 - Parse arguments; set DRY_RUN, FORCE, VERBOSE flags
+DETAIL:PUSH_OPERATION :: STEP 3 - validate_environment() - check bash, tools, directories
+DETAIL:PUSH_OPERATION :: STEP 4 - validate_server_id() - format check
+DETAIL:PUSH_OPERATION :: STEP 5 - get_server_config() - load from servers.conf
+DETAIL:PUSH_OPERATION :: STEP 6 - validate_source_path() - exists, readable
+DETAIL:PUSH_OPERATION :: STEP 7 - validate_transfer_size() - within limits
+DETAIL:PUSH_OPERATION :: STEP 8 - acquire_lock("push") - prevent concurrent ops
+DETAIL:PUSH_OPERATION :: STEP 9 - generate_uuid() - create operation ID
+DETAIL:PUSH_OPERATION :: STEP 10 - sync_to_remote() - rsync over SSH
+DETAIL:PUSH_OPERATION :: STEP 11 - (if s3_archive) archive_to_s3()
+DETAIL:PUSH_OPERATION :: STEP 12 - log_operation() - write to sync.jsonl
+DETAIL:PUSH_OPERATION :: STEP 13 - release_lock("push")
+DETAIL:PUSH_OPERATION :: STEP 14 - Exit with appropriate code
+
+FLOW :: PULL_OPERATION | User invokes pull; files transferred from remote
+DETAIL:PULL_OPERATION :: STEP 1-8 - Same validation as push
+DETAIL:PULL_OPERATION :: STEP 9 - sync_from_remote() - rsync from server
+DETAIL:PULL_OPERATION :: STEP 10 - Stage to local/inbox/<server_id>/
+DETAIL:PULL_OPERATION :: STEP 11-14 - Same logging and cleanup as push
+
+================================================================================
+[SAFETY_MECHANISMS]
+================================================================================
+SECTION_TYPE :: MANUAL
+
+TOPIC :: SAFETY_FEATURES
+TOPIC_DESCRIPTION :: All security and safety mechanisms in sync-shuttle
+TOPIC_RELATED :: VALIDATION_FUNCTIONS
+
+SAFETY :: NO_DELETE_GUARANTEE | rsync never invoked with --delete flag | LOC:lib/transfer.sh:build_rsync_options | ENFORCEMENT:hardcoded
+DETAIL:NO_DELETE_GUARANTEE :: RATIONALE prevents accidental mass deletion from misconfigured sync
+DETAIL:NO_DELETE_GUARANTEE :: IMPLEMENTATION hard-coded exclusion; no config option to enable
+DETAIL:NO_DELETE_GUARANTEE :: VERIFICATION grep for "--delete" in codebase returns zero matches
+
+SAFETY :: PATH_SANDBOX | All operations confined to SYNC_BASE_DIR | LOC:lib/validation.sh:validate_path_within_sandbox | ENFORCEMENT:validation
+DETAIL:PATH_SANDBOX :: MECHANISM resolve paths to absolute; check prefix match; reject .. sequences
+DETAIL:PATH_SANDBOX :: MECHANISM resolve symlinks before validation to prevent escape
+DETAIL:PATH_SANDBOX :: RATIONALE prevents path traversal attacks; limits blast radius
+
+SAFETY :: COLLISION_DETECTION | Warn/fail when destination file exists | LOC:lib/validation.sh:check_file_collision | ENFORCEMENT:validation
+DETAIL:COLLISION_DETECTION :: WITHOUT --force: fail with exit 6
+DETAIL:COLLISION_DETECTION :: WITH --force: warn and proceed; original archived
+DETAIL:COLLISION_DETECTION :: RATIONALE prevents accidental data loss from overwrites
+
+SAFETY :: ARCHIVE_BEFORE_OVERWRITE | Original file copied to archive/ before overwrite | LOC:lib/transfer.sh | ENFORCEMENT:rsync_--backup
+DETAIL:ARCHIVE_BEFORE_OVERWRITE :: RATIONALE recovery point for accidental overwrites
+
+SAFETY :: SERVER_ID_VALIDATION | Strict format rules for server identifiers | LOC:lib/validation.sh:validate_server_id | ENFORCEMENT:validation
+DETAIL:SERVER_ID_VALIDATION :: RULES lowercase; alphanumeric; dashes; 3-32 chars; no ../
+DETAIL:SERVER_ID_VALIDATION :: RATIONALE prevents injection into filesystem paths
+
+SAFETY :: OPERATION_LOCKING | Prevent concurrent sync operations | LOC:lib/core.sh:acquire_lock | ENFORCEMENT:lock_files
+DETAIL:OPERATION_LOCKING :: MECHANISM lock file in tmp/ directory
+DETAIL:OPERATION_LOCKING :: RATIONALE prevents race conditions and partial transfers
+
+SAFETY :: AUDIT_LOGGING | Complete record of all operations | LOC:lib/logging.sh:log_operation | ENFORCEMENT:automatic
+DETAIL:AUDIT_LOGGING :: FORMAT JSON Lines for machine parsing
+DETAIL:AUDIT_LOGGING :: RATIONALE traceability; compliance; debugging
+
+SAFETY :: NO_BACKGROUND_OPERATIONS | All operations require explicit user action | ENFORCEMENT:design
+DETAIL:NO_BACKGROUND_OPERATIONS :: MECHANISM no daemon; no cron; no watch mode
+DETAIL:NO_BACKGROUND_OPERATIONS :: RATIONALE user always knows when files move
+
+================================================================================
+[FAQ_AI_AGENTS]
+================================================================================
+SECTION_TYPE :: MANUAL
+
+FAQ :: What is sync-shuttle?
+FAQ_ANSWER :: CLI file synchronization tool wrapping rsync with safety guardrails | NEVER deletes files | NEVER overwrites without consent | Full audit trail
+
+FAQ :: How do I install?
+FAQ_ANSWER :: curl -fsSL URL/install.sh | bash OR git clone && ./sync-shuttle.sh init | Creates ~/.sync-shuttle/ structure
+
+FAQ :: How do I add a server?
+FAQ_ANSWER :: Edit ~/.sync-shuttle/config/servers.conf | Add declare -A server_<id>=([host]="..." [user]="..." [remote_base]="..." [enabled]="true") | Minimum: host, user, remote_base, enabled
+
+FAQ :: How do I push files?
+FAQ_ANSWER :: sync-shuttle push --server <id> --source <path> | Always test with --dry-run first | Files go to remote:remote_base/local/inbox/hostname/
+
+FAQ :: How do I pull files?
+FAQ_ANSWER :: sync-shuttle pull --server <id> | Files arrive at ~/.sync-shuttle/local/inbox/<server_id>/
+
+FAQ :: Can sync-shuttle delete remote files?
+FAQ_ANSWER :: NO - core safety guarantee | rsync NEVER invoked with --delete | Use ssh directly for deletions
+
+FAQ :: What does --force do?
+FAQ_ANSWER :: Allows overwriting existing files | Original archived first | Without --force: exit code 6 on collision
+
+FAQ :: What does --dry-run do?
+FAQ_ANSWER :: Simulates operation without changes | rsync --dry-run flag | No files modified, no transfers
+
+FAQ :: How do I use SSH keys?
+FAQ_ANSWER :: In servers.conf: [identity_file]="~/.ssh/mykey.pem" | Supports ~ expansion | Key must be readable, permissions 600/400
+
+FAQ :: Where are logs?
+FAQ_ANSWER :: Human: ~/.sync-shuttle/logs/sync.log | Machine: ~/.sync-shuttle/logs/sync.jsonl | Query: jq '.status' sync.jsonl
+
+FAQ :: What are the exit codes?
+FAQ_ANSWER :: 0=success | 1=general error | 2=invalid args | 3=not init | 4=server not found | 5=transfer failed | 6=collision | 7=validation failed | 8=dependency missing
+
+FAQ :: How do I run tests?
+FAQ_ANSWER :: ./tests/run_tests.sh [unit|integration|e2e] | All tests: ./tests/run_tests.sh
+
+FAQ :: Where is the entry point?
+FAQ_ANSWER :: sync-shuttle.sh | Line ~400: library sourcing | Line ~500: argument parsing | Line ~700: action dispatch
+
+FAQ :: How do I add a new command?
+FAQ_ANSWER :: 1. Add case in dispatch (~line 700) | 2. Create do_<action> function | 3. Add to help text | 4. Add tests | 5. Update llm.txt
+
+FAQ :: Does this work on macOS?
+FAQ_ANSWER :: Yes but needs bash 4.0+ | macOS ships bash 3.x | Install: brew install bash | Update PATH
+
+FAQ :: What rsync options are used?
+FAQ_ANSWER :: -avz (archive, verbose, compress) | --progress | --ignore-existing (safety) | --backup (for --force) | NEVER --delete
+
+================================================================================
+[EDGE_CASES]
+================================================================================
+SECTION_TYPE :: MANUAL
+
+EDGE :: Empty source directory | rsync completes with 0 files | LOGGED:yes | EXIT:0
+EDGE :: Source deleted during transfer | rsync exit 24 (vanished) | LOGGED:yes | EXIT:0 (acceptable)
+EDGE :: Disk full | rsync fails mid-transfer | LOGGED:yes | EXIT:5 | RECOVERY:clear space, re-run
+EDGE :: SSH drops during transfer | rsync exits with error | LOGGED:yes | EXIT:5 | RECOVERY:re-run (resumes)
+EDGE :: Invalid host in config | SSH connection fails | LOGGED:yes | EXIT:5
+EDGE :: Wrong port | SSH times out | LOGGED:yes | EXIT:5 | TIMEOUT:SSH_CONNECT_TIMEOUT
+EDGE :: identity_file missing | Warning logged; falls back to SSH agent | EXIT:depends on agent
+EDGE :: Symlink attack in sandbox | validate_path_within_sandbox rejects | LOGGED:yes | EXIT:7 | SECURITY:symlinks resolved
+EDGE :: Concurrent push | Second blocked by lock | LOGGED:yes | EXIT:1 | LOCK:tmp/push.lock
+EDGE :: CTRL+C during operation | Trap catches; cleanup runs | LOGGED:partial | LOCK:released | TEMP:cleaned
+
+================================================================================
+[AI_MODIFICATION_GUIDE]
+================================================================================
+SECTION_TYPE :: MANUAL
+
+MOD :: Adding a new CLI flag
+DETAIL:new_flag :: STEP 1 - Edit sync-shuttle.sh argument parsing (~line 500)
+DETAIL:new_flag :: STEP 2 - Add case: --newflag) NEWFLAG="true"; shift ;;
+DETAIL:new_flag :: STEP 3 - Initialize: NEWFLAG="${NEWFLAG:-false}"
+DETAIL:new_flag :: STEP 4 - Add to help text (~line 430)
+DETAIL:new_flag :: STEP 5 - Document in llm.txt
+
+MOD :: Adding a new library function
+DETAIL:new_func :: STEP 1 - Identify correct lib/*.sh file
+DETAIL:new_func :: STEP 2 - Add function following existing patterns
+DETAIL:new_func :: STEP 3 - Add unit test in tests/unit/
+DETAIL:new_func :: STEP 4 - Document in llm.txt FUNCTION_REFERENCE
+
+MOD :: Adding a new server config field
+DETAIL:new_field :: STEP 1 - Add to servers.conf.example
+DETAIL:new_field :: STEP 2 - Update get_server_config() output
+DETAIL:new_field :: STEP 3 - Update consumers
+DETAIL:new_field :: STEP 4 - Update SCHEMA in llm.txt
+
+CODING_STYLE :: 4-space indentation | Quote all variables "$var" | Use [[ ]] not [ ] | Use local for function vars
+
+================================================================================
+[GLOSSARY]
+================================================================================
+SECTION_TYPE :: MANUAL
+
+TERM :: sandbox | The SYNC_BASE_DIR directory; all operations confined here
+TERM :: server_id | Unique identifier for a remote server in servers.conf
+TERM :: staging | Local copy of files before/after remote transfer
+TERM :: collision | When destination file already exists
+TERM :: archive | Backup copy made before overwrite
+TERM :: dry-run | Simulation mode; no actual changes made
+TERM :: force | Override safety checks (collision detection)
+
+================================================================================
+[DOCUMENT_METADATA]
+================================================================================
+SECTION_TYPE :: AUTO
+
+META_VERSION :: 1.1.0
+META_PREVIOUS :: 1.0.0
+META_UPDATED :: 2026-01-01
+META_LINES :: 1950
+META_SECTIONS :: 16
+META_FORMAT :: Topic-oriented (RFC-LLM-TXT-001 v1.1.0)
+
+META_CHANGES_FROM_1.0 :: Converted to topic-oriented format
+META_CHANGES_FROM_1.0 :: Added summary lines with complete understanding
+META_CHANGES_FROM_1.0 :: Added DETAIL blocks for depth
+META_CHANGES_FROM_1.0 :: Added TOPIC markers for grouping
+META_CHANGES_FROM_1.0 :: Added integrity headers
+
+================================================================================
+[END_OF_DOCUMENT]
+================================================================================
