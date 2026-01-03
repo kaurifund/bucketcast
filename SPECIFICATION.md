@@ -73,7 +73,7 @@ safety over convenience, ensuring files are never accidentally deleted or overwr
 ~/.sync-shuttle/
 ├── config/
 │   ├── sync-shuttle.conf      # Main configuration
-│   └── servers.conf           # Server definitions
+│   └── servers.toml           # Server definitions
 ├── remote/
 │   └── <server_id>/
 │       └── files/             # Files synced from this server
@@ -164,13 +164,13 @@ LogEntry {
 ## Access Patterns
 
 ### Read Patterns
-1. List configured servers → Read `servers.conf`
+1. List configured servers → Read `servers.toml`
 2. View sync history → Read `logs/sync.jsonl`
 3. Browse remote files → List `remote/<server_id>/files/`
 4. Check pending outbox → List `local/outbox/`
 
 ### Write Patterns
-1. Add server → Append to `servers.conf`
+1. Add server → Append to `servers.toml`
 2. Push files → Copy to `remote/<server_id>/files/` + rsync
 3. Pull files → Rsync + copy to `local/inbox/`
 4. Log operation → Append to both log files

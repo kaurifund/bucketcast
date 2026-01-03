@@ -56,7 +56,7 @@ create_test_server() {
     local config_dir="${CONFIG_DIR:-$TEST_DIR/config}"
     mkdir -p "$config_dir"
     
-    cat > "${config_dir}/servers.conf" << EOF
+    cat > "${config_dir}/servers.toml" << EOF
 declare -A server_${server_id}=(
     [name]="Test Server"
     [host]="localhost"
@@ -68,7 +68,7 @@ declare -A server_${server_id}=(
 )
 EOF
     
-    echo "${config_dir}/servers.conf"
+    echo "${config_dir}/servers.toml"
 }
 
 # Create disabled test server
@@ -77,7 +77,7 @@ create_disabled_server() {
     local config_dir="${CONFIG_DIR:-$TEST_DIR/config}"
     mkdir -p "$config_dir"
     
-    cat >> "${config_dir}/servers.conf" << EOF
+    cat >> "${config_dir}/servers.toml" << EOF
 
 declare -A server_${server_id}=(
     [name]="Disabled Server"
@@ -96,7 +96,7 @@ create_test_server_config() {
     local config_dir="${CONFIG_DIR:-$TEST_DIR/config}"
     mkdir -p "$config_dir"
     
-    cat > "${config_dir}/servers.conf" << 'EOF'
+    cat > "${config_dir}/servers.toml" << 'EOF'
 declare -A server_dev=(
     [name]="Development Server"
     [host]="dev.example.com"
@@ -128,7 +128,7 @@ declare -A server_disabled=(
 )
 EOF
     
-    echo "${config_dir}/servers.conf"
+    echo "${config_dir}/servers.toml"
 }
 
 # Get path to a static fixture file

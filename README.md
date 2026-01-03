@@ -1,6 +1,16 @@
-# Sync Shuttle 🚀
+# Sync Shuttle
 
 **Safe, Idempotent File Synchronization for Manual Transfers**
+
+## Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kaurifund/bucketcast/main/install.sh | bash
+```
+
+That's it. This installs to `~/.local/share/sync-shuttle/`, adds it to your PATH, and sets up everything including the TUI.
+
+---
 
 Sync Shuttle is a command-line tool for safely transferring files between your home computer and remote servers. It prioritizes safety and auditability over speed, ensuring files are never accidentally deleted or overwritten.
 
@@ -17,51 +27,31 @@ Sync Shuttle is a command-line tool for safely transferring files between your h
 ## Quick Start
 
 ```bash
-# 1. Clone or download
-git clone https://github.com/user/sync-shuttle.git
-cd sync-shuttle
+# 1. Install
+curl -fsSL https://raw.githubusercontent.com/kaurifund/bucketcast/main/install.sh | bash
+source ~/.bashrc  # or restart your shell
 
-# 2. Initialize
-./sync-shuttle.sh init
+# 2. Configure a server
+nano ~/.sync-shuttle/config/servers.toml
 
-# 3. Configure a server
-# Edit ~/.sync-shuttle/config/servers.conf
+# 3. Test with dry-run
+sync-shuttle push --server myserver --source ~/myfile.txt --dry-run
 
-# 4. Test with dry-run
-./sync-shuttle.sh push --server myserver --source ~/myfile.txt --dry-run
-
-# 5. Execute
-./sync-shuttle.sh push --server myserver --source ~/myfile.txt
+# 4. Execute
+sync-shuttle push --server myserver --source ~/myfile.txt
 ```
 
-## Installation
-
-### Prerequisites
+## Requirements
 
 - **Bash 4.0+** (check with `bash --version`)
 - **rsync 3.0+** (check with `rsync --version`)
 - **SSH** with key-based authentication configured
-- **uuidgen** (usually pre-installed)
 
 ### Optional
 
 - **AWS CLI** (for S3 integration)
-- **Python 3** with `textual` and `rich` (for TUI)
+- **Python 3** (for TUI - installer creates isolated venv)
 - **jq** (for log parsing)
-
-### Install
-
-```bash
-# Clone the repository
-git clone https://github.com/user/sync-shuttle.git
-
-# Add to PATH (optional)
-echo 'export PATH="$PATH:/path/to/sync-shuttle"' >> ~/.bashrc
-source ~/.bashrc
-
-# Initialize
-sync-shuttle.sh init
-```
 
 ## Directory Structure
 
@@ -71,7 +61,7 @@ After initialization, Sync Shuttle creates:
 ~/.sync-shuttle/
 ├── config/
 │   ├── sync-shuttle.conf    # Main configuration
-│   └── servers.conf         # Server definitions
+│   └── servers.toml         # Server definitions
 ├── remote/
 │   └── <server_id>/
 │       └── files/           # Files synced with this server
@@ -137,18 +127,28 @@ sync-shuttle.sh push -s myserver -S ~/backup/ --s3-archive
 
 ### Server Configuration
 
-Edit `~/.sync-shuttle/config/servers.conf`:
+Edit `~/.sync-shuttle/config/servers.toml`:
 
-```bash
-declare -A server_myserver=(
-    [name]="My Development Server"
-    [host]="192.168.1.100"
-    [port]="22"
-    [user]="myuser"
-    [remote_base]="/home/myuser/.sync-shuttle"
-    [enabled]="true"
-    [s3_backup]="false"
-)
+```toml
+[servers.myserver]
+name = "My Development Server"
+host = "192.168.1.100"
+port = 22
+user = "myuser"
+identity_file = "~/.ssh/id_rsa"  # optional
+remote_base = "/home/myuser/.sync-shuttle"
+enabled = true
+s3_backup = false
+
+[servers.aws-prod]
+name = "AWS Production"
+host = "ec2-12-34-56-78.compute-1.amazonaws.com"
+port = 22
+user = "ec2-user"
+identity_file = "~/.ssh/my-key.pem"
+remote_base = "/home/ec2-user/.sync-shuttle"
+enabled = true
+s3_backup = true
 ```
 
 ### Main Configuration
@@ -205,12 +205,10 @@ sync-shuttle.sh s3-pull --transfer-id <uuid>
 Launch the interactive interface:
 
 ```bash
-# Install dependencies
-pip install textual rich
-
-# Launch TUI
-sync-shuttle.sh tui
+sync-shuttle tui
 ```
+
+The TUI is automatically set up by the installer (isolated Python venv, no global packages).
 
 The TUI provides:
 - Server list and status

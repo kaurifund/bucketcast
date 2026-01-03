@@ -85,7 +85,7 @@ test_config_loading_reads_servers_config() {
     mkdir -p "$CONFIG_DIR"
     
     # Create servers config
-    cat > "${CONFIG_DIR}/servers.conf" << 'EOF'
+    cat > "${CONFIG_DIR}/servers.toml" << 'EOF'
 declare -A server_mytest=(
     [name]="My Test Server"
     [host]="test.example.com"
@@ -98,7 +98,7 @@ declare -A server_mytest=(
 EOF
     
     # Source servers config
-    source "${CONFIG_DIR}/servers.conf"
+    source "${CONFIG_DIR}/servers.toml"
     
     # Check server was loaded
     assert_equals "${server_mytest[name]}" "My Test Server"

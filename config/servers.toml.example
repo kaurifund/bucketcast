@@ -1,0 +1,45 @@
+# Sync Shuttle - Server Configuration
+# ====================================
+# Copy this file to ~/.sync-shuttle/config/servers.toml and edit.
+#
+# Each [servers.ID] section defines a server.
+# ID must be lowercase alphanumeric with dashes (3-32 chars).
+
+[servers.example]
+name = "Example Server"
+host = "192.168.1.100"
+port = 22
+user = "myuser"
+remote_base = "/home/myuser/.sync-shuttle"
+enabled = false
+s3_backup = false
+
+[servers.aws-prod]
+name = "AWS Production"
+host = "ec2-12-34-56-78.compute-1.amazonaws.com"
+port = 22
+user = "ec2-user"
+identity_file = "~/.ssh/aws-prod.pem"
+remote_base = "/home/ec2-user/.sync-shuttle"
+enabled = false
+s3_backup = true
+
+[servers.homelab]
+name = "Home Lab Server"
+host = "192.168.1.50"
+port = 22
+user = "admin"
+# identity_file not set = use default SSH key
+remote_base = "/home/admin/.sync-shuttle"
+enabled = false
+s3_backup = false
+
+[servers.raspberry-pi]
+name = "Raspberry Pi"
+host = "raspberrypi.local"
+port = 22
+user = "pi"
+identity_file = "~/.ssh/id_rsa"
+remote_base = "/home/pi/.sync-shuttle"
+enabled = false
+s3_backup = false

@@ -35,57 +35,58 @@ generate_uuid() {
 }
 
 #===============================================================================
+# GET: Python interpreter for config parsing
+#===============================================================================
+get_config_python() {
+    local venv_python="${SCRIPT_DIR}/.venv/bin/python"
+
+    if [[ -f "$venv_python" ]]; then
+        echo "$venv_python"
+    elif command -v python3 &>/dev/null; then
+        echo "python3"
+    else
+        log_error "Python 3 required for config parsing"
+        return 1
+    fi
+}
+
+#===============================================================================
 # GET: Server configuration by ID
 # Outputs variables that can be eval'd: server_host, server_port, etc.
 #===============================================================================
 get_server_config() {
     local server_id="$1"
-    local servers_file="${CONFIG_DIR}/servers.conf"
-    
+    local servers_file="${CONFIG_DIR}/servers.toml"
+    local parser="${SCRIPT_DIR}/lib/config_parser.py"
+
     # Validate server ID format
     if ! validate_server_id "$server_id"; then
         return 1
     fi
-    
+
     # Check servers file exists
     if [[ ! -f "$servers_file" ]]; then
         log_error "Servers configuration not found: $servers_file"
+        log_error "Expected: $servers_file"
         return 1
     fi
-    
-    # Source the servers file
-    source "$servers_file"
-    
-    # Check if server array exists
-    local array_name="server_${server_id//-/_}"
-    
-    # Use nameref if available (bash 4.3+)
-    if [[ "${BASH_VERSINFO[0]}" -ge 4 && "${BASH_VERSINFO[1]}" -ge 3 ]]; then
-        local -n server_ref="$array_name" 2>/dev/null || {
-            log_error "Server not found: $server_id"
-            return 1
-        }
-        
-        # Check if enabled
-        if [[ "${server_ref[enabled]:-false}" != "true" ]]; then
-            log_error "Server is disabled: $server_id"
-            return 1
-        fi
-        
-        # Output variables for eval
-        echo "server_name='${server_ref[name]:-$server_id}'"
-        echo "server_host='${server_ref[host]:-}'"
-        echo "server_port='${server_ref[port]:-22}'"
-        echo "server_user='${server_ref[user]:-}'"
-        echo "server_identity_file='${server_ref[identity_file]:-}'"
-        echo "server_remote_base='${server_ref[remote_base]:-}'"
-        echo "server_s3_backup='${server_ref[s3_backup]:-false}'"
-    else
-        # Fallback for older bash
-        log_error "Bash 4.3+ required for server configuration"
+
+    # Check parser exists
+    if [[ ! -f "$parser" ]]; then
+        log_error "Config parser not found: $parser"
         return 1
     fi
-    
+
+    # Get Python interpreter
+    local python
+    python=$(get_config_python) || return 1
+
+    # Parse config with Python
+    "$python" "$parser" "$servers_file" get "$server_id" 2>&1 || {
+        log_error "Failed to load server config: $server_id"
+        return 1
+    }
+
     return 0
 }
 
@@ -93,23 +94,19 @@ get_server_config() {
 # LIST: All configured servers
 #===============================================================================
 list_all_servers() {
-    local servers_file="${CONFIG_DIR}/servers.conf"
-    
+    local servers_file="${CONFIG_DIR}/servers.toml"
+    local parser="${SCRIPT_DIR}/lib/config_parser.py"
+
     if [[ ! -f "$servers_file" ]]; then
         return 1
     fi
-    
-    # Source servers config
-    source "$servers_file"
-    
-    # Find all server_* arrays
-    local servers=()
-    for var in $(compgen -A variable | grep '^server_'); do
-        local server_id="${var#server_}"
-        servers+=("$server_id")
-    done
-    
-    printf '%s\n' "${servers[@]}"
+
+    # Get Python interpreter
+    local python
+    python=$(get_config_python) || return 1
+
+    # List servers using Python parser
+    "$python" "$parser" "$servers_file" list
 }
 
 #===============================================================================

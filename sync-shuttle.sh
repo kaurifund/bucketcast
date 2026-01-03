@@ -14,7 +14,7 @@
 # Version:     1.0.0
 # Author:      Sync Shuttle Contributors
 # License:     MIT
-# Repository:  https://github.com/user/sync-shuttle
+# Repository:  https://github.com/kaurifund/bucketcast
 #===============================================================================
 #
 # DESCRIPTION:
@@ -46,7 +46,7 @@
 #   ~/.sync-shuttle/
 #   ├── config/
 #   │   ├── sync-shuttle.conf    # Main configuration (sourced)
-#   │   └── servers.conf         # Server definitions (sourced)
+#   │   └── servers.toml         # Server definitions (sourced)
 #   ├── remote/
 #   │   └── <server_id>/
 #   │       └── files/           # Files synced from/to this server
@@ -263,7 +263,7 @@
 #   │ MAX_TRANSFER_SIZE   │ Max single transfer size (e.g., 10G)          │
 #   └─────────────────────┴────────────────────────────────────────────────┘
 #
-#   servers.conf format (one server per block):
+#   servers.toml format (one server per block):
 #   ┌──────────────────────────────────────────────────────────────────────┐
 #   │ [myserver]                                                          │
 #   │ name="My Development Server"                                        │
@@ -345,6 +345,7 @@ VERBOSE="false"
 QUIET="false"
 S3_ARCHIVE="false"
 OPERATION_UUID=""
+CONFIG_ARGS=()
 
 #===============================================================================
 # DERIVED PATHS (computed after config load)
@@ -424,7 +425,14 @@ ${BOLD}COMMANDS:${RESET}
     pull                    Pull files FROM a remote server
     list <servers|files>    List servers or files in a server's directory
     status                  Show sync status and recent operations
+    config <subcommand>     Manage server configuration
     tui                     Launch interactive terminal UI
+
+${BOLD}CONFIG SUBCOMMANDS:${RESET}
+    config get <server> <field>         Get a config value
+    config set <server> <field> <val>   Set a config value
+    config add <server>                 Add a new server
+    config remove <server>              Remove a server
 
 ${BOLD}OPTIONS:${RESET}
     -s, --server <id>       Target server ID (required for push/pull)
@@ -477,7 +485,7 @@ parse_arguments() {
 
     # First argument should be the command
     case "${1:-}" in
-        init|push|pull|list|status|tui|help|--help|-h)
+        init|push|pull|list|status|config|tui|help|--help|-h)
             ACTION="${1}"
             shift
             ;;
@@ -491,6 +499,12 @@ parse_arguments() {
             exit 2
             ;;
     esac
+
+    # For config command, capture all remaining args
+    if [[ "$ACTION" == "config" ]]; then
+        CONFIG_ARGS=("$@")
+        return 0
+    fi
 
     # Handle help specially
     if [[ "$ACTION" == "help" || "$ACTION" == "--help" || "$ACTION" == "-h" ]]; then
@@ -559,6 +573,109 @@ parse_arguments() {
 }
 
 #===============================================================================
+# MIGRATIONS
+#===============================================================================
+# Version comparison: returns 0 if $1 < $2
+version_lt() {
+    [[ "$1" != "$2" ]] && [[ "$(printf '%s\n%s' "$1" "$2" | sort -V | head -n1)" == "$1" ]]
+}
+
+# Get installed version (0.0.0 if no version file)
+get_installed_version() {
+    if [[ -f "$VERSION_FILE" ]]; then
+        # Get latest version from last line (format: "TIMESTAMP VERSION")
+        tail -n1 "$VERSION_FILE" | awk '{print $2}'
+    else
+        echo "0.0.0"
+    fi
+}
+
+# Append version entry with timestamp
+update_version_file() {
+    local timestamp
+    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    echo "${timestamp} ${SCRIPT_VERSION}" >> "$VERSION_FILE"
+}
+
+# Migration: pre-1.0.0 to 1.0.0 (servers.conf → servers.toml)
+migrate_to_1_0_0() {
+    local old_conf="${CONFIG_DIR}/servers.conf"
+    local new_toml="${CONFIG_DIR}/servers.toml"
+
+    # Skip if old config doesn't exist or new one already does
+    [[ ! -f "$old_conf" ]] && return 0
+    [[ -f "$new_toml" ]] && return 0
+
+    echo -e "${YELLOW}[MIGRATE]${RESET} Converting servers.conf to servers.toml..."
+
+    # Parse bash declare -A arrays and convert to TOML
+    local python_script='
+import sys
+import re
+
+content = sys.stdin.read()
+pattern = r"declare\s+-A\s+server_(\w+)=\(\s*([^)]+)\)"
+matches = re.findall(pattern, content, re.DOTALL)
+
+print("# Sync Shuttle - Server Configuration")
+print("# Migrated from servers.conf")
+print("")
+
+for server_id, props_str in matches:
+    print(f"[servers.{server_id}]")
+    # Parse [key]="value" pairs
+    prop_pattern = r"\[(\w+)\]=\"([^\"]*)\""
+    for key, value in re.findall(prop_pattern, props_str):
+        if value.lower() in ("true", "false"):
+            print(f"{key} = {value.lower()}")
+        elif value.isdigit():
+            print(f"{key} = {value}")
+        else:
+            print(f"{key} = \"{value}\"")
+    print("")
+'
+
+    local python
+    python=$(get_config_python 2>/dev/null) || python="python3"
+
+    if "$python" -c "print('ok')" &>/dev/null; then
+        if "$python" -c "$python_script" < "$old_conf" > "$new_toml" 2>/dev/null; then
+            mv "$old_conf" "${old_conf}.backup"
+            echo -e "${GREEN}[MIGRATE]${RESET} Converted to servers.toml (backup: servers.conf.backup)"
+            return 0
+        fi
+    fi
+
+    echo -e "${YELLOW}[MIGRATE]${RESET} Auto-migration failed. Please manually convert servers.conf to servers.toml"
+    return 1
+}
+
+# Run all necessary migrations based on version
+check_and_run_migrations() {
+    # Skip if sync-shuttle directory doesn't exist (fresh install)
+    [[ ! -d "$SYNC_BASE_DIR" ]] && return 0
+
+    local installed_version
+    installed_version=$(get_installed_version)
+
+    # Skip if already up to date
+    [[ "$installed_version" == "$SCRIPT_VERSION" ]] && return 0
+
+    # Run migrations in order
+    if version_lt "$installed_version" "1.0.0"; then
+        migrate_to_1_0_0 || true
+    fi
+
+    # Future migrations go here:
+    # if version_lt "$installed_version" "2.0.0"; then
+    #     migrate_to_2_0_0 || true
+    # fi
+
+    # Update version file
+    update_version_file
+}
+
+#===============================================================================
 # INITIALIZATION
 #===============================================================================
 initialize_paths() {
@@ -572,6 +689,7 @@ initialize_paths() {
     TMP_DIR="${SYNC_BASE_DIR}/tmp"
     LOG_FILE="${LOGS_DIR}/sync.log"
     LOG_JSON_FILE="${LOGS_DIR}/sync.jsonl"
+    VERSION_FILE="${SYNC_BASE_DIR}/.version"
 }
 
 load_configuration() {
@@ -610,6 +728,9 @@ dispatch_action() {
             ;;
         status)
             action_status
+            ;;
+        config)
+            action_config
             ;;
         tui)
             action_tui
@@ -654,6 +775,11 @@ action_init() {
             log_debug "Already exists: $dir"
         fi
     done
+
+    # Set secure permissions on base directory (owner only)
+    chmod 700 "$SYNC_BASE_DIR"
+    chmod 700 "$CONFIG_DIR"
+    log_debug "Set secure permissions on config directory"
     
     # Create default config if not exists
     local config_file="${CONFIG_DIR}/sync-shuttle.conf"
@@ -663,19 +789,28 @@ action_init() {
     fi
     
     # Create servers config if not exists
-    local servers_file="${CONFIG_DIR}/servers.conf"
+    local servers_file="${CONFIG_DIR}/servers.toml"
     if [[ ! -f "$servers_file" ]]; then
         create_default_servers_config "$servers_file"
         log_info "Created servers configuration: $servers_file"
     fi
-    
-    # Create log files
+
+    # Set secure permissions on config files (owner read/write only)
+    chmod 600 "$config_file" 2>/dev/null || true
+    chmod 600 "$servers_file" 2>/dev/null || true
+    log_debug "Set secure permissions on config files"
+
+    # Create log files with secure permissions
     touch "$LOG_FILE" "$LOG_JSON_FILE"
-    
+    chmod 600 "$LOG_FILE" "$LOG_JSON_FILE" 2>/dev/null || true
+
+    # Write version file (append with timestamp)
+    update_version_file
+
     log_success "Sync Shuttle initialized successfully!"
     echo ""
     echo "Next steps:"
-    echo "  1. Edit ${CONFIG_DIR}/servers.conf to add your servers"
+    echo "  1. Edit ${CONFIG_DIR}/servers.toml to add your servers"
     echo "  2. Run '$SCRIPT_NAME list servers' to verify"
     echo "  3. Use '$SCRIPT_NAME push --server <id> --source <path> --dry-run' to test"
 }
@@ -742,42 +877,37 @@ DEFAULTCONFIG
 
 create_default_servers_config() {
     local servers_file="$1"
-    
+
     cat > "$servers_file" << 'DEFAULTSERVERS'
-#===============================================================================
-# SYNC SHUTTLE - SERVER DEFINITIONS
-#===============================================================================
-# Define your servers below. Each server is a bash associative array.
+# Sync Shuttle - Server Configuration
+# ====================================
+# Each [servers.ID] section defines a server.
+# ID must be lowercase alphanumeric with dashes (3-32 chars).
 #
-# Format:
-#   declare -A server_<id>=(
-#       [name]="Display Name"
-#       [host]="hostname.or.ip"
-#       [port]="22"
-#       [user]="username"
-#       [remote_base]="/path/to/.sync-shuttle"
-#       [enabled]="true"
-#       [s3_backup]="false"
-#   )
+# Required fields: host, user, remote_base
+# Optional fields: port (default 22), identity_file, s3_backup
 #
-# The server ID (after 'server_') must be lowercase alphanumeric with dashes.
-# Example: server_my-dev-box, server_prod01, server_home-nas
-#===============================================================================
+# Example with SSH key (.pem):
+#   [servers.aws-prod]
+#   name = "AWS Production"
+#   host = "ec2-xx-xx-xx-xx.compute-1.amazonaws.com"
+#   port = 22
+#   user = "ec2-user"
+#   identity_file = "~/.ssh/my-key.pem"
+#   remote_base = "/home/ec2-user/.sync-shuttle"
+#   enabled = true
+#   s3_backup = true
 
-# Example server (disabled by default - edit and enable to use)
-declare -A server_example=(
-    [name]="Example Server"
-    [host]="192.168.1.100"
-    [port]="22"
-    [user]="myuser"
-    [remote_base]="/home/myuser/.sync-shuttle"
-    [enabled]="false"
-    [s3_backup]="false"
-)
+[servers.example]
+name = "Example Server"
+host = "192.168.1.100"
+port = 22
+user = "myuser"
+remote_base = "/home/myuser/.sync-shuttle"
+enabled = false
+s3_backup = false
 
-# Add your servers below this line
-# ─────────────────────────────────────────────────────────────────────────────
-
+# Add your servers below
 DEFAULTSERVERS
 }
 
@@ -937,43 +1067,47 @@ list_servers() {
     echo ""
     echo "${BOLD}Configured Servers${RESET}"
     echo "─────────────────────────────────────────────────────────"
-    
-    local servers_file="${CONFIG_DIR}/servers.conf"
+
+    local servers_file="${CONFIG_DIR}/servers.toml"
+    local parser="${SCRIPT_DIR}/lib/config_parser.py"
+
     if [[ ! -f "$servers_file" ]]; then
         log_warn "No servers configured. Run '$SCRIPT_NAME init' first."
         return
     fi
-    
-    # Source servers config
-    source "$servers_file"
-    
-    # Find all server_* arrays
+
+    # Get Python interpreter
+    local python
+    python=$(get_config_python) || return 1
+
+    # Get server list from Python parser
     local found_servers=0
-    for var in $(compgen -A variable | grep '^server_'); do
-        local server_id="${var#server_}"
-        local -n server_ref="$var"
-        
-        local status="${GREEN}●${RESET}"
-        if [[ "${server_ref[enabled]:-false}" != "true" ]]; then
-            status="${RED}○${RESET}"
+    while IFS='|' read -r status server_id user host port name; do
+        if [[ "$status" == "NO_SERVERS" ]]; then
+            break
         fi
-        
+
+        local status_icon="${GREEN}●${RESET}"
+        if [[ "$status" != "enabled" ]]; then
+            status_icon="${RED}○${RESET}"
+        fi
+
         printf "  %b %-15s %s@%s:%s\n" \
-            "$status" \
+            "$status_icon" \
             "$server_id" \
-            "${server_ref[user]:-?}" \
-            "${server_ref[host]:-?}" \
-            "${server_ref[port]:-22}"
-        printf "    └─ %s\n" "${server_ref[name]:-No name}"
-        
+            "$user" \
+            "$host" \
+            "$port"
+        printf "    └─ %s\n" "$name"
+
         ((found_servers++))
-    done
-    
+    done < <("$python" "$parser" "$servers_file" list-detail)
+
     if [[ $found_servers -eq 0 ]]; then
         echo "  No servers configured."
-        echo "  Edit: ${CONFIG_DIR}/servers.conf"
+        echo "  Edit: ${CONFIG_DIR}/servers.toml"
     fi
-    
+
     echo ""
     echo "Legend: ${GREEN}●${RESET} enabled  ${RED}○${RESET} disabled"
     echo ""
@@ -1077,34 +1211,91 @@ action_status() {
 }
 
 #===============================================================================
+# ACTION: CONFIG
+#===============================================================================
+action_config() {
+    local servers_file="${CONFIG_DIR}/servers.toml"
+    local parser="${SCRIPT_DIR}/lib/config_parser.py"
+
+    # Get Python interpreter
+    local python
+    python=$(get_config_python) || exit 1
+
+    if [[ ${#CONFIG_ARGS[@]} -eq 0 ]]; then
+        echo "${BOLD}Config Commands:${RESET}"
+        echo "  $SCRIPT_NAME config get <server> <field>"
+        echo "  $SCRIPT_NAME config set <server> <field> <value>"
+        echo "  $SCRIPT_NAME config add <server>"
+        echo "  $SCRIPT_NAME config remove <server>"
+        echo ""
+        echo "Example:"
+        echo "  $SCRIPT_NAME config add my-server"
+        echo "  $SCRIPT_NAME config set my-server host 10.0.1.50"
+        echo "  $SCRIPT_NAME config set my-server user admin"
+        echo "  $SCRIPT_NAME config set my-server enabled true"
+        exit 0
+    fi
+
+    local subcommand="${CONFIG_ARGS[0]}"
+
+    case "$subcommand" in
+        get)
+            if [[ ${#CONFIG_ARGS[@]} -lt 3 ]]; then
+                log_error "Usage: $SCRIPT_NAME config get <server> <field>"
+                exit 2
+            fi
+            "$python" "$parser" "$servers_file" get-field "${CONFIG_ARGS[1]}" "${CONFIG_ARGS[2]}"
+            ;;
+        set)
+            if [[ ${#CONFIG_ARGS[@]} -lt 4 ]]; then
+                log_error "Usage: $SCRIPT_NAME config set <server> <field> <value>"
+                exit 2
+            fi
+            "$python" "$parser" "$servers_file" set "${CONFIG_ARGS[1]}" "${CONFIG_ARGS[2]}" "${CONFIG_ARGS[3]}"
+            ;;
+        add)
+            if [[ ${#CONFIG_ARGS[@]} -lt 2 ]]; then
+                log_error "Usage: $SCRIPT_NAME config add <server>"
+                exit 2
+            fi
+            "$python" "$parser" "$servers_file" add "${CONFIG_ARGS[1]}"
+            ;;
+        remove)
+            if [[ ${#CONFIG_ARGS[@]} -lt 2 ]]; then
+                log_error "Usage: $SCRIPT_NAME config remove <server>"
+                exit 2
+            fi
+            "$python" "$parser" "$servers_file" remove "${CONFIG_ARGS[1]}"
+            ;;
+        *)
+            log_error "Unknown config subcommand: $subcommand"
+            echo "Use '$SCRIPT_NAME config' for usage."
+            exit 2
+            ;;
+    esac
+}
+
+#===============================================================================
 # ACTION: TUI
 #===============================================================================
 action_tui() {
     local tui_script="${SCRIPT_DIR}/tui/sync_tui.py"
-    
+    local venv_python="${SCRIPT_DIR}/.venv/bin/python"
+
     if [[ ! -f "$tui_script" ]]; then
         log_error "TUI script not found: $tui_script"
         exit 1
     fi
-    
-    if ! command -v python3 &> /dev/null; then
-        log_error "Python 3 is required for the TUI"
-        echo "Install Python 3 and try again."
+
+    if [[ ! -f "$venv_python" ]]; then
+        log_error "Python venv not found: ${SCRIPT_DIR}/.venv"
+        echo "Run the installer to set up the TUI environment:"
+        echo "  curl -fsSL https://raw.githubusercontent.com/kaurifund/bucketcast/main/install.sh | bash"
         exit 8
     fi
-    
-    # Check for required Python packages
-    if ! python3 -c "import textual" 2>/dev/null; then
-        log_warn "Installing required Python packages..."
-        pip3 install --user textual rich 2>/dev/null || {
-            log_error "Failed to install Python packages"
-            echo "Run: pip3 install textual rich"
-            exit 8
-        }
-    fi
-    
-    # Launch TUI
-    exec python3 "$tui_script" --base-dir "$SYNC_BASE_DIR" --config-dir "$CONFIG_DIR"
+
+    # Launch TUI using venv Python
+    exec "$venv_python" "$tui_script" --base-dir "$SYNC_BASE_DIR" --config-dir "$CONFIG_DIR"
 }
 
 #===============================================================================
@@ -1113,10 +1304,13 @@ action_tui() {
 main() {
     # Initialize paths with defaults first
     initialize_paths
-    
+
     # Parse command line arguments
     parse_arguments "$@"
-    
+
+    # Check for and run any needed migrations
+    check_and_run_migrations
+
     # Load configuration (may override paths)
     load_configuration
     

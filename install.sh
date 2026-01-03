@@ -149,8 +149,36 @@ update_shell_rc() {
 
 initialize_sync_shuttle() {
     info "Initializing sync-shuttle..."
-    
+
     "${INSTALL_DIR}/sync-shuttle.sh" init || warn "Initialization skipped (may already exist)"
+}
+
+setup_python_venv() {
+    # Check if Python 3 is available
+    if ! command -v python3 &>/dev/null; then
+        warn "Python 3 not found - TUI will not be available"
+        warn "Install Python 3 and re-run installer to enable TUI"
+        return 0
+    fi
+
+    local venv_dir="${INSTALL_DIR}/.venv"
+
+    info "Setting up Python virtual environment for TUI..."
+
+    # Create venv
+    if ! python3 -m venv "$venv_dir" 2>/dev/null; then
+        warn "Failed to create venv - TUI will not be available"
+        warn "You may need to install python3-venv package"
+        return 0
+    fi
+
+    # Install dependencies in venv
+    if "${venv_dir}/bin/pip" install --quiet textual rich 2>/dev/null; then
+        success "TUI dependencies installed in isolated venv"
+    else
+        warn "Failed to install TUI dependencies"
+        warn "TUI may not work - run: ${venv_dir}/bin/pip install textual rich"
+    fi
 }
 
 print_completion() {
@@ -169,13 +197,13 @@ print_completion() {
     echo "     source $(detect_shell_rc)"
     echo ""
     echo "  2. Configure a server:"
-    echo "     nano ~/.sync-shuttle/config/servers.conf"
+    echo "     nano ~/.sync-shuttle/config/servers.toml"
     echo ""
     echo "  3. Test with dry-run:"
     echo "     sync-shuttle push -s myserver -S ~/file.txt --dry-run"
     echo ""
-    echo "  4. (Optional) Install TUI dependencies:"
-    echo "     pip3 install textual rich"
+    echo "  4. (Optional) Launch the TUI:"
+    echo "     sync-shuttle tui"
     echo ""
     echo -e "${BOLD}Documentation:${RESET} ${INSTALL_DIR}/README.md"
     echo ""
@@ -210,13 +238,16 @@ main() {
     
     # Install
     install_binary
-    
+
+    # Setup Python venv for TUI
+    setup_python_venv
+
     # Update shell RC
     update_shell_rc
-    
+
     # Initialize
     initialize_sync_shuttle
-    
+
     # Done
     print_completion
 }
