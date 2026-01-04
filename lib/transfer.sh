@@ -212,22 +212,35 @@ perform_rsync_pull() {
     
     # Parse server config
     eval "$server_config"
-    
+
+    # Build SSH options (including identity file if specified)
+    local ssh_opts="-p ${server_port} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=${SSH_CONNECT_TIMEOUT:-10}"
+    log_debug "Identity file from config: '${server_identity_file:-}'"
+    if [[ -n "${server_identity_file:-}" ]]; then
+        local expanded_key="${server_identity_file/#\~/$HOME}"
+        if [[ -f "$expanded_key" ]]; then
+            ssh_opts+=" -i ${expanded_key}"
+            log_debug "Using SSH key: ${expanded_key}"
+        else
+            log_warn "SSH key not found: ${server_identity_file}"
+        fi
+    fi
+
     # Validate SSH connection
-    if ! validate_ssh_connection "$server_host" "$server_port" "$server_user"; then
+    if ! validate_ssh_connection "$server_host" "$server_port" "$server_user" "$ssh_opts"; then
         log_error "SSH connection failed"
         return 1
     fi
-    
+
     # Build remote source path
     local remote_src="${server_user}@${server_host}:${server_remote_base}/local/outbox/"
-    
+
     # Build rsync command
     local -a rsync_opts
     mapfile -t rsync_opts < <(build_rsync_options "$extra_options")
-    
+
     # Add SSH options
-    rsync_opts+=("-e" "ssh -p ${server_port} -o StrictHostKeyChecking=accept-new")
+    rsync_opts+=("-e" "ssh ${ssh_opts}")
     
     # Ensure destination exists
     if [[ "$extra_options" != *"--dry-run"* ]]; then

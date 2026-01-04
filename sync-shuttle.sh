@@ -317,7 +317,7 @@ set -o pipefail  # Exit on pipe failure
 # SCRIPT METADATA
 #===============================================================================
 readonly SCRIPT_NAME="sync-shuttle"
-readonly SCRIPT_VERSION="1.1.0"
+readonly SCRIPT_VERSION="1.1.1"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 #===============================================================================
