@@ -168,11 +168,14 @@
 #   ./sync-shuttle.sh list servers
 #
 #   # Push a file to a server (dry-run first!)
-#   ./sync-shuttle.sh push --server myserver --source ~/file.txt --dry-run
-#   ./sync-shuttle.sh push --server myserver --source ~/file.txt
+#   ./sync-shuttle.sh push -s myserver ~/file.txt --dry-run
+#   ./sync-shuttle.sh push -s myserver ~/file.txt
 #
-#   # Push a directory
-#   ./sync-shuttle.sh push --server myserver --source ~/myproject/ --dry-run
+#   # Push multiple files
+#   ./sync-shuttle.sh push -s myserver file1.txt file2.txt config/
+#
+#   # Push current directory
+#   ./sync-shuttle.sh push -s myserver .
 #
 #   # Pull files from a server
 #   ./sync-shuttle.sh pull --server myserver --dry-run
@@ -191,7 +194,7 @@
 #   ./sync-shuttle.sh tui
 #
 #   # Verbose mode for debugging
-#   ./sync-shuttle.sh push --server myserver --source ~/file.txt --verbose
+#   ./sync-shuttle.sh push -s myserver ~/file.txt --verbose
 #
 #-------------------------------------------------------------------------------
 # USE CASE PATTERNS:
@@ -225,14 +228,14 @@
 #   Scenario: Push same files to multiple servers
 #   
 #   for server in web-01 web-02 web-03; do
-#       ./sync-shuttle.sh push --server "$server" --source ~/deploy/
+#       ./sync-shuttle.sh push -s "$server" ~/deploy/
 #   done
 #
 #   PATTERN 4: S3 Archive After Sync (if enabled)
 #   ──────────────────────────────────────────────
 #   Scenario: Archive to S3 after successful sync
-#   
-#   ./sync-shuttle.sh push --server myserver --source ~/data/ --s3-archive
+#
+#   ./sync-shuttle.sh push -s myserver ~/data/ --s3-archive
 #
 #   PATTERN 5: Collision Handling
 #   ─────────────────────────────
@@ -338,7 +341,7 @@ MAX_TRANSFER_SIZE="10G"
 #===============================================================================
 ACTION=""
 SERVER_ID=""
-SOURCE_PATH=""
+SOURCE_PATHS=()
 DRY_RUN="false"
 FORCE="false"
 VERBOSE="false"
@@ -420,6 +423,21 @@ source_library "transfer.sh"
 source_library "s3.sh"
 
 #===============================================================================
+# HELPER: Resolve path to absolute
+#===============================================================================
+resolve_source_path() {
+    local src="$1"
+    if [[ -e "$src" ]]; then
+        if [[ -d "$src" ]]; then
+            src="$(cd "$src" && pwd)"
+        else
+            src="$(cd "$(dirname "$src")" && pwd)/$(basename "$src")"
+        fi
+    fi
+    echo "$src"
+}
+
+#===============================================================================
 # USAGE AND HELP
 #===============================================================================
 show_usage() {
@@ -449,7 +467,7 @@ ${BOLD}CONFIG SUBCOMMANDS:${RESET}
 
 ${BOLD}OPTIONS:${RESET}
     -s, --server <id>       Target server ID (required for push/pull)
-    -S, --source <path>     Source file or directory to push
+    -S, --source <path>     Source file or directory (legacy, use positional args)
     -n, --dry-run           Preview operations without executing
     -f, --force             Allow overwrites (prompts for confirmation)
     -v, --verbose           Verbose output
@@ -471,9 +489,11 @@ ${BOLD}EXAMPLES:${RESET}
     # List configured servers
     $SCRIPT_NAME list servers
 
-    # Push a file (always dry-run first!)
-    $SCRIPT_NAME push -s myserver -S ~/file.txt --dry-run
-    $SCRIPT_NAME push -s myserver -S ~/file.txt
+    # Push files (always dry-run first!)
+    $SCRIPT_NAME push -s myserver ./file.txt --dry-run
+    $SCRIPT_NAME push -s myserver ./file.txt
+    $SCRIPT_NAME push -s myserver file1.txt file2.txt dir/
+    $SCRIPT_NAME push -s myserver .                    # Push current directory
 
     # Pull from a server
     $SCRIPT_NAME pull -s myserver --dry-run
@@ -550,13 +570,14 @@ parse_arguments() {
                 shift 2
                 ;;
             -S|--source)
-                SOURCE_PATH="${2:-}"
-                if [[ -z "$SOURCE_PATH" ]]; then
+                # Legacy flag support - append to SOURCE_PATHS
+                local src="${2:-}"
+                if [[ -z "$src" ]]; then
                     log_error "--source requires an argument"
                     exit 2
                 fi
-                # Strip trailing slashes to preserve folder names in rsync
-                SOURCE_PATH="${SOURCE_PATH%/}"
+                # resolve_source_path uses `pwd` which strips trailing slashes
+                SOURCE_PATHS+=("$(resolve_source_path "$src")")
                 shift 2
                 ;;
             -n|--dry-run)
@@ -612,19 +633,28 @@ parse_arguments() {
                 shift
                 ;;
             servers|files)
-                # Subcommand for list
+                # Subcommand for list command only
                 if [[ "$ACTION" == "list" ]]; then
                     LIST_SUBCOMMAND="${1}"
+                    shift
+                else
+                    # For other commands, treat as source path
+                    SOURCE_PATHS+=("$(resolve_source_path "$1")")
+                    shift
                 fi
-                shift
                 ;;
             -h|--help)
                 show_usage
                 exit 0
                 ;;
-            *)
+            -*)
                 log_error "Unknown option: ${1}"
                 exit 2
+                ;;
+            *)
+                # Positional argument - treat as source path for push
+                SOURCE_PATHS+=("$(resolve_source_path "$1")")
+                shift
                 ;;
         esac
     done
@@ -881,7 +911,7 @@ action_init() {
     echo "Next steps:"
     echo "  1. Edit ${CONFIG_DIR}/servers.toml to add your servers"
     echo "  2. Run '$SCRIPT_NAME list servers' to verify"
-    echo "  3. Use '$SCRIPT_NAME push --server <id> --source <path> --dry-run' to test"
+    echo "  3. Use '$SCRIPT_NAME push -s <server> <file> --dry-run' to test"
 }
 
 create_default_config() {
@@ -987,21 +1017,24 @@ action_push() {
     OPERATION_UUID=$(generate_uuid)
     local timestamp_start
     timestamp_start=$(get_iso_timestamp)
-    
+
     log_info "Starting PUSH operation [${OPERATION_UUID}]"
     log_info "Server: ${SERVER_ID}"
-    
-    # Validate source path exists
-    if [[ -z "$SOURCE_PATH" ]]; then
+
+    # Validate source paths exist
+    if [[ ${#SOURCE_PATHS[@]} -eq 0 ]]; then
         log_error "Source path is required for push operation"
-        echo "Use: $SCRIPT_NAME push --server $SERVER_ID --source <path>"
+        echo "Use: $SCRIPT_NAME push -s $SERVER_ID <file-or-dir> [more files...]"
         exit 2
     fi
-    
-    if [[ ! -e "$SOURCE_PATH" ]]; then
-        log_error "Source path does not exist: $SOURCE_PATH"
-        exit 5
-    fi
+
+    # Validate all source paths exist
+    for src in "${SOURCE_PATHS[@]}"; do
+        if [[ ! -e "$src" ]]; then
+            log_error "Source path does not exist: $src"
+            exit 5
+        fi
+    done
     
     # Load server configuration
     local server_config
@@ -1027,23 +1060,28 @@ action_push() {
     fi
     mkdir -p "$staging_dir"
 
-    # Perform pre-flight checks
-    preflight_push "$SOURCE_PATH" "$staging_dir"
+    # Perform pre-flight checks for each source
+    for src in "${SOURCE_PATHS[@]}"; do
+        preflight_push "$src" "$staging_dir"
+    done
 
     # Build remote destination for display
     local remote_dest="${server_user}@${server_host}:${server_remote_base}/local/inbox/${HOSTNAME:-$(hostname)}/"
 
+    # Format sources for display
+    local sources_display="${SOURCE_PATHS[*]}"
+
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "[DRY-RUN] Would transfer:"
-        log_info "  Source:       $SOURCE_PATH"
+        log_info "  Source(s):    $sources_display"
         log_info "  Local stage:  $staging_dir"
         log_info "  Remote dest:  $remote_dest"
-        perform_rsync_push "$SOURCE_PATH" "$staging_dir" "--dry-run"
+        perform_rsync_push_multi "${SOURCE_PATHS[@]}" "$staging_dir" "--dry-run"
         # Clean up dry-run staging
         rm -rf "$staging_dir"
     else
-        log_info "Transferring: $SOURCE_PATH -> $staging_dir"
-        perform_rsync_push "$SOURCE_PATH" "$staging_dir" ""
+        log_info "Transferring: $sources_display -> $staging_dir"
+        perform_rsync_push_multi "${SOURCE_PATHS[@]}" "$staging_dir" ""
 
         # Remote sync
         sync_to_remote "$SERVER_ID" "$staging_dir"
@@ -1065,7 +1103,7 @@ action_push() {
     invalidate_cache "$SERVER_ID"
 
     # Log the operation
-    log_operation "$OPERATION_UUID" "push" "$SERVER_ID" "$SOURCE_PATH" "$staging_dir" \
+    log_operation "$OPERATION_UUID" "push" "$SERVER_ID" "$sources_display" "$staging_dir" \
         "$timestamp_start" "$timestamp_end" "SUCCESS"
 
     log_success "Push operation completed [${OPERATION_UUID}]"
