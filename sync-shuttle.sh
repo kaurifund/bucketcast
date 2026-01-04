@@ -317,7 +317,7 @@ set -o pipefail  # Exit on pipe failure
 # SCRIPT METADATA
 #===============================================================================
 readonly SCRIPT_NAME="sync-shuttle"
-readonly SCRIPT_VERSION="1.0.0"
+readonly SCRIPT_VERSION="1.1.0"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 #===============================================================================
@@ -1329,7 +1329,15 @@ main() {
 
     # Load configuration (may override paths)
     load_configuration
-    
+
+    # Re-apply CLI log level flags (they take precedence over config)
+    if [[ "$VERBOSE" == "true" ]]; then
+        LOG_LEVEL="DEBUG"
+        log_info "$SCRIPT_NAME v$SCRIPT_VERSION"
+    elif [[ "$QUIET" == "true" ]]; then
+        LOG_LEVEL="ERROR"
+    fi
+
     # Validate environment for non-init actions
     if [[ "$ACTION" != "init" ]]; then
         validate_environment
