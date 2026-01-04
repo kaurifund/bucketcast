@@ -348,6 +348,8 @@ OPERATION_UUID=""
 CONFIG_ARGS=()
 SEARCH_QUERY=""
 SHOW_REMOTE="false"
+SHOW_INBOX="true"
+SHOW_OUTBOX="true"
 OUTPUT_FORMAT="default"
 
 #===============================================================================
@@ -449,6 +451,8 @@ ${BOLD}OPTIONS:${RESET}
     -v, --verbose           Verbose output
     -q, --quiet             Minimal output
     --search <pattern>      Filter files by glob pattern (e.g. "*.txt")
+    --inbox                 Show only inbox (received files)
+    --outbox                Show only outbox (files you're sharing)
     --remote                Include remote server files (requires SSH)
     --json                  Output in JSON format
     --s3-archive            Archive to S3 after successful sync
@@ -582,6 +586,16 @@ parse_arguments() {
                 ;;
             --remote)
                 SHOW_REMOTE="true"
+                shift
+                ;;
+            --inbox)
+                SHOW_INBOX="true"
+                SHOW_OUTBOX="false"
+                shift
+                ;;
+            --outbox)
+                SHOW_OUTBOX="true"
+                SHOW_INBOX="false"
                 shift
                 ;;
             --json)
@@ -1276,73 +1290,135 @@ action_status() {
 # ACTION: FILES - List files across inbox/outbox/remote
 #===============================================================================
 action_files() {
-    local found_any=false
+    # Track totals for search summary
+    local total_matches=0
+    local total_locations=0
 
-    echo ""
-    echo "${BOLD}Sync Shuttle Files${RESET}"
-    echo "═════════════════════════════════════════════════════════"
+    # JSON output accumulator
+    local json_output=""
+
+    if [[ "$OUTPUT_FORMAT" != "json" ]]; then
+        echo ""
+        if [[ -n "$SEARCH_QUERY" ]]; then
+            echo "${BOLD}Search Results for \"${SEARCH_QUERY}\"${RESET}"
+        else
+            echo "${BOLD}Sync Shuttle Files${RESET}"
+        fi
+        echo "═════════════════════════════════════════════════════════"
+    else
+        json_output='{"outbox":[],"inbox":{},"remote":{}}'
+    fi
 
     # Show outbox (files you're sharing)
-    echo ""
-    echo "${BOLD}📤 Your Outbox${RESET} (files others can pull from you)"
-    echo "─────────────────────────────────────────────────────────"
-    list_directory_files "$OUTBOX_DIR" "" "$SEARCH_QUERY"
+    if [[ "$SHOW_OUTBOX" == "true" ]]; then
+        if [[ "$OUTPUT_FORMAT" != "json" ]]; then
+            echo ""
+            echo "${BOLD}📤 Your Outbox${RESET} (files others can pull from you)"
+            echo "─────────────────────────────────────────────────────────"
+        fi
+        local outbox_result
+        outbox_result=$(list_directory_files_counted "$OUTBOX_DIR" "" "$SEARCH_QUERY")
+        local outbox_count
+        outbox_count=$(echo "$outbox_result" | tail -1)
+        if [[ $outbox_count -gt 0 ]]; then
+            total_matches=$((total_matches + outbox_count))
+            ((total_locations++)) || true
+        fi
+        if [[ "$OUTPUT_FORMAT" != "json" ]]; then
+            echo "$outbox_result" | head -n -1
+        fi
+    fi
 
     # Show inbox (files received)
-    echo ""
-    echo "${BOLD}📥 Your Inbox${RESET} (files you received)"
-    echo "─────────────────────────────────────────────────────────"
-    if [[ -d "$INBOX_DIR" ]]; then
-        local has_inbox_files=false
-        for sender_dir in "$INBOX_DIR"/*/; do
-            [[ -d "$sender_dir" ]] || continue
-            # Remove trailing slash
-            sender_dir="${sender_dir%/}"
-            local sender_name
-            sender_name=$(basename "$sender_dir")
+    if [[ "$SHOW_INBOX" == "true" ]]; then
+        if [[ "$OUTPUT_FORMAT" != "json" ]]; then
+            echo ""
+            echo "${BOLD}📥 Your Inbox${RESET} (files you received)"
+            echo "─────────────────────────────────────────────────────────"
+        fi
+        if [[ -d "$INBOX_DIR" ]]; then
+            local has_inbox_files=false
+            for sender_dir in "$INBOX_DIR"/*/; do
+                [[ -d "$sender_dir" ]] || continue
+                sender_dir="${sender_dir%/}"
+                local sender_name
+                sender_name=$(basename "$sender_dir")
 
-            # If server filter is set, skip non-matching
-            if [[ -n "$SERVER_ID" && "$sender_name" != "$SERVER_ID" ]]; then
-                continue
+                if [[ -n "$SERVER_ID" && "$sender_name" != "$SERVER_ID" ]]; then
+                    continue
+                fi
+
+                local inbox_result
+                inbox_result=$(list_directory_files_counted "$sender_dir" "    " "$SEARCH_QUERY")
+                local inbox_count
+                inbox_count=$(echo "$inbox_result" | tail -1)
+
+                if [[ $inbox_count -gt 0 ]]; then
+                    has_inbox_files=true
+                    total_matches=$((total_matches + inbox_count))
+                    ((total_locations++)) || true
+                    if [[ "$OUTPUT_FORMAT" != "json" ]]; then
+                        echo "  From ${BOLD}${sender_name}${RESET}:"
+                        echo "$inbox_result" | head -n -1
+                    fi
+                fi
+            done
+            if [[ "$has_inbox_files" == "false" && "$OUTPUT_FORMAT" != "json" ]]; then
+                echo "  (empty)"
             fi
-
-            local file_count
-            file_count=$(find "$sender_dir" -type f 2>/dev/null | wc -l)
-            [[ $file_count -eq 0 ]] && continue
-
-            has_inbox_files=true
-            echo "  From ${BOLD}${sender_name}${RESET}:"
-            list_directory_files "$sender_dir" "    " "$SEARCH_QUERY"
-        done
-        [[ "$has_inbox_files" == "false" ]] && echo "  (empty)"
-    else
-        echo "  (not initialized)"
+        elif [[ "$OUTPUT_FORMAT" != "json" ]]; then
+            echo "  (not initialized)"
+        fi
     fi
 
     # Show remote files if requested
     if [[ "$SHOW_REMOTE" == "true" ]]; then
-        echo ""
-        echo "${BOLD}📡 Remote Servers${RESET} (files available to pull)"
-        echo "─────────────────────────────────────────────────────────"
-        list_remote_files
-    else
+        if [[ "$OUTPUT_FORMAT" != "json" ]]; then
+            echo ""
+            echo "${BOLD}📡 Remote Servers${RESET} (files available to pull)"
+            echo "─────────────────────────────────────────────────────────"
+        fi
+        local remote_result
+        remote_result=$(list_remote_files_counted)
+        local remote_count
+        remote_count=$(echo "$remote_result" | tail -1)
+        if [[ $remote_count -gt 0 ]]; then
+            total_matches=$((total_matches + remote_count))
+            ((total_locations++)) || true
+        fi
+        if [[ "$OUTPUT_FORMAT" != "json" ]]; then
+            echo "$remote_result" | head -n -1
+        fi
+    elif [[ "$OUTPUT_FORMAT" != "json" && -z "$SEARCH_QUERY" ]]; then
         echo ""
         echo "${DIM}Tip: Use --remote to scan remote server outboxes${RESET}"
+    fi
+
+    # Search summary
+    if [[ -n "$SEARCH_QUERY" && "$OUTPUT_FORMAT" != "json" ]]; then
+        echo ""
+        echo "─────────────────────────────────────────────────────────"
+        if [[ $total_matches -gt 0 ]]; then
+            echo "Found ${BOLD}${total_matches}${RESET} matches across ${BOLD}${total_locations}${RESET} locations"
+        else
+            echo "No matches found for \"${SEARCH_QUERY}\""
+        fi
     fi
 
     echo ""
 }
 
 #===============================================================================
-# HELPER: List files in a directory
+# HELPER: List files in a directory (returns count as last line)
 #===============================================================================
-list_directory_files() {
+list_directory_files_counted() {
     local dir="$1"
     local prefix="${2:-  }"
     local search="${3:-}"
 
     if [[ ! -d "$dir" ]]; then
         echo "${prefix}(not initialized)"
+        echo "0"
         return
     fi
 
@@ -1361,6 +1437,7 @@ list_directory_files() {
 
     if [[ ${#files[@]} -eq 0 ]]; then
         echo "${prefix}(empty)"
+        echo "0"
         return
     fi
 
@@ -1379,6 +1456,7 @@ list_directory_files() {
 
     echo "${prefix}─────────────────────────────────────────────────"
     printf "%sTotal: %d files (%s)\n" "$prefix" "${#files[@]}" "$(human_readable_size $total_size)"
+    echo "${#files[@]}"
 }
 
 #===============================================================================
@@ -1404,14 +1482,15 @@ format_age() {
 }
 
 #===============================================================================
-# HELPER: List remote server files via SSH
+# HELPER: List remote server files via SSH (returns total count as last line)
 #===============================================================================
-list_remote_files() {
+list_remote_files_counted() {
     local servers_file="${CONFIG_DIR}/servers.toml"
     local parser="${SCRIPT_DIR}/lib/config_parser.py"
+    local grand_total=0
 
     local python
-    python=$(get_config_python) || return 1
+    python=$(get_config_python) || { echo "0"; return 1; }
 
     # Get enabled servers
     local server_ids=()
@@ -1421,6 +1500,7 @@ list_remote_files() {
 
     if [[ ${#server_ids[@]} -eq 0 ]]; then
         echo "  No servers configured"
+        echo "0"
         return
     fi
 
@@ -1479,8 +1559,11 @@ list_remote_files() {
         if [[ $count -gt 0 ]]; then
             echo "    ─────────────────────────────────────────────────"
             printf "    Total: %d files (%s)\n" "$count" "$(human_readable_size $total_size)"
+            grand_total=$((grand_total + count))
         fi
     done
+
+    echo "$grand_total"
 }
 
 #===============================================================================

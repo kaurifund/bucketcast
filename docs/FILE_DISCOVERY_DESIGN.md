@@ -195,13 +195,16 @@ $ sync-shuttle tree --remote
 
 ## Implementation Plan
 
-1. [ ] Add `files` command with basic local listing
-2. [ ] Add `tree` command for hierarchical view
-3. [ ] Add search/filter functionality (-q, --search)
-4. [ ] Add remote server querying (--remote, parallel SSH)
-5. [ ] Add caching layer for remote queries
-6. [ ] Add JSON output format (--json)
-7. [ ] Add TUI browser `browse` command (separate PR)
+1. [x] Add `files` command with basic local listing
+2. [x] Add `tree` command for hierarchical view
+3. [x] Add search/filter functionality (--search)
+4. [x] Add --inbox / --outbox location filters
+5. [x] Add remote server querying (--remote)
+6. [x] Add search summary ("Found X matches across Y locations")
+7. [ ] Add parallel SSH for remote queries
+8. [ ] Add caching layer for remote queries
+9. [ ] Add JSON output format (--json)
+10. [ ] Add TUI browser `browse` command (separate PR)
 
 ## Open Questions
 
