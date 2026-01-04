@@ -3,8 +3,9 @@
 **Type:** Bug (Design Oversight)
 **Severity:** Medium
 **Status:** Fixed
-**Branch:** hotfix/staging-accumulation
-**PR:** #5
+**Commits:**
+- `64bf36f` (PR #5) - Initial fix using tmp/ (incorrect location)
+- `2b20f28` - Corrected to use remote/<server>/ (proper location)
 
 ## Summary
 
