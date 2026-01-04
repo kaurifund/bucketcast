@@ -951,48 +951,52 @@ action_push() {
         exit 4
     fi
 
-    # Validate destination is within sandbox
-    local dest_dir="${REMOTE_DIR}/${SERVER_ID}/files"
-    if ! validate_path_within_sandbox "$dest_dir"; then
-        log_error "Destination path validation failed (security check)"
+    # Create operation-specific staging directory (avoids accumulation)
+    local staging_dir="${TMP_DIR}/push-${OPERATION_UUID}"
+    if ! validate_path_within_sandbox "$staging_dir"; then
+        log_error "Staging path validation failed (security check)"
         exit 4
     fi
-
-    # Ensure destination directory exists
-    mkdir -p "$dest_dir"
+    mkdir -p "$staging_dir"
 
     # Perform pre-flight checks
-    preflight_push "$SOURCE_PATH" "$dest_dir"
-    
+    preflight_push "$SOURCE_PATH" "$staging_dir"
+
     # Build remote destination for display
     local remote_dest="${server_user}@${server_host}:${server_remote_base}/local/inbox/${HOSTNAME:-$(hostname)}/"
 
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "[DRY-RUN] Would transfer:"
         log_info "  Source:       $SOURCE_PATH"
-        log_info "  Local stage:  $dest_dir"
+        log_info "  Local stage:  $staging_dir"
         log_info "  Remote dest:  $remote_dest"
-        perform_rsync_push "$SOURCE_PATH" "$dest_dir" "--dry-run"
+        perform_rsync_push "$SOURCE_PATH" "$staging_dir" "--dry-run"
+        # Clean up dry-run staging
+        rm -rf "$staging_dir"
     else
-        log_info "Transferring: $SOURCE_PATH -> $dest_dir"
-        perform_rsync_push "$SOURCE_PATH" "$dest_dir" ""
-        
-        # Remote sync if not dry-run
-        sync_to_remote "$SERVER_ID" "$dest_dir"
-        
+        log_info "Transferring: $SOURCE_PATH -> $staging_dir"
+        perform_rsync_push "$SOURCE_PATH" "$staging_dir" ""
+
+        # Remote sync
+        sync_to_remote "$SERVER_ID" "$staging_dir"
+
         # S3 archive if requested
         if [[ "$S3_ARCHIVE" == "true" && "$S3_ENABLED" == "true" ]]; then
-            archive_to_s3 "$dest_dir" "$SERVER_ID"
+            archive_to_s3 "$staging_dir" "$SERVER_ID"
         fi
+
+        # Clean up staging after successful sync
+        rm -rf "$staging_dir"
+        log_debug "Cleaned up staging directory: $staging_dir"
     fi
-    
+
     local timestamp_end
     timestamp_end=$(get_iso_timestamp)
-    
+
     # Log the operation
-    log_operation "$OPERATION_UUID" "push" "$SERVER_ID" "$SOURCE_PATH" "$dest_dir" \
+    log_operation "$OPERATION_UUID" "push" "$SERVER_ID" "$SOURCE_PATH" "$staging_dir" \
         "$timestamp_start" "$timestamp_end" "SUCCESS"
-    
+
     log_success "Push operation completed [${OPERATION_UUID}]"
 }
 
