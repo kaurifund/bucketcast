@@ -529,6 +529,8 @@ parse_arguments() {
                     log_error "--source requires an argument"
                     exit 2
                 fi
+                # Strip trailing slashes to preserve folder names in rsync
+                SOURCE_PATH="${SOURCE_PATH%/}"
                 shift 2
                 ;;
             -n|--dry-run)
