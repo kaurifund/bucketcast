@@ -317,7 +317,7 @@ set -o pipefail  # Exit on pipe failure
 # SCRIPT METADATA
 #===============================================================================
 readonly SCRIPT_NAME="sync-shuttle"
-readonly SCRIPT_VERSION="1.1.1"
+readonly SCRIPT_VERSION="1.2.0"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 #===============================================================================
@@ -346,6 +346,9 @@ QUIET="false"
 S3_ARCHIVE="false"
 OPERATION_UUID=""
 CONFIG_ARGS=()
+SEARCH_QUERY=""
+SHOW_REMOTE="false"
+OUTPUT_FORMAT="default"
 
 #===============================================================================
 # DERIVED PATHS (computed after config load)
@@ -373,6 +376,7 @@ if [[ -t 1 ]]; then
     readonly CYAN=$'\033[0;36m'
     readonly WHITE=$'\033[0;37m'
     readonly BOLD=$'\033[1m'
+    readonly DIM=$'\033[2m'
     readonly RESET=$'\033[0m'
 else
     readonly RED=''
@@ -383,6 +387,7 @@ else
     readonly CYAN=''
     readonly WHITE=''
     readonly BOLD=''
+    readonly DIM=''
     readonly RESET=''
 fi
 
@@ -423,6 +428,8 @@ ${BOLD}COMMANDS:${RESET}
     init                    Initialize sync-shuttle directory structure
     push                    Push files TO a remote server
     pull                    Pull files FROM a remote server
+    files                   List all files (inbox/outbox/remote)
+    tree                    Tree view of all files
     list <servers|files>    List servers or files in a server's directory
     status                  Show sync status and recent operations
     config <subcommand>     Manage server configuration
@@ -441,6 +448,9 @@ ${BOLD}OPTIONS:${RESET}
     -f, --force             Allow overwrites (prompts for confirmation)
     -v, --verbose           Verbose output
     -q, --quiet             Minimal output
+    --search <pattern>      Filter files by glob pattern (e.g. "*.txt")
+    --remote                Include remote server files (requires SSH)
+    --json                  Output in JSON format
     --s3-archive            Archive to S3 after successful sync
     -h, --help              Show this help message
     -V, --version           Show version
@@ -459,6 +469,13 @@ ${BOLD}EXAMPLES:${RESET}
     # Pull from a server
     $SCRIPT_NAME pull -s myserver --dry-run
     $SCRIPT_NAME pull -s myserver
+
+    # Browse files
+    $SCRIPT_NAME files                    # List local inbox/outbox
+    $SCRIPT_NAME files --remote           # Include remote server files
+    $SCRIPT_NAME files --search "*.pdf"   # Search for PDFs
+    $SCRIPT_NAME tree                     # Tree view
+    $SCRIPT_NAME tree -s myserver --remote
 
 ${BOLD}SAFETY:${RESET}
     • All operations are sandboxed to ~/.sync-shuttle/
@@ -485,7 +502,7 @@ parse_arguments() {
 
     # First argument should be the command
     case "${1:-}" in
-        init|push|pull|list|status|config|tui|help|--help|-h)
+        init|push|pull|list|status|config|tui|files|tree|help|--help|-h)
             ACTION="${1}"
             shift
             ;;
@@ -553,6 +570,22 @@ parse_arguments() {
                 ;;
             --s3-archive)
                 S3_ARCHIVE="true"
+                shift
+                ;;
+            --search|--find)
+                SEARCH_QUERY="${2:-}"
+                if [[ -z "$SEARCH_QUERY" ]]; then
+                    log_error "--search requires a pattern"
+                    exit 2
+                fi
+                shift 2
+                ;;
+            --remote)
+                SHOW_REMOTE="true"
+                shift
+                ;;
+            --json)
+                OUTPUT_FORMAT="json"
                 shift
                 ;;
             servers|files)
@@ -730,6 +763,12 @@ dispatch_action() {
             ;;
         status)
             action_status
+            ;;
+        files)
+            action_files
+            ;;
+        tree)
+            action_tree
             ;;
         config)
             action_config
@@ -1231,6 +1270,406 @@ action_status() {
         echo "  (not initialized)"
     fi
     echo ""
+}
+
+#===============================================================================
+# ACTION: FILES - List files across inbox/outbox/remote
+#===============================================================================
+action_files() {
+    local found_any=false
+
+    echo ""
+    echo "${BOLD}Sync Shuttle Files${RESET}"
+    echo "═════════════════════════════════════════════════════════"
+
+    # Show outbox (files you're sharing)
+    echo ""
+    echo "${BOLD}📤 Your Outbox${RESET} (files others can pull from you)"
+    echo "─────────────────────────────────────────────────────────"
+    list_directory_files "$OUTBOX_DIR" "" "$SEARCH_QUERY"
+
+    # Show inbox (files received)
+    echo ""
+    echo "${BOLD}📥 Your Inbox${RESET} (files you received)"
+    echo "─────────────────────────────────────────────────────────"
+    if [[ -d "$INBOX_DIR" ]]; then
+        local has_inbox_files=false
+        for sender_dir in "$INBOX_DIR"/*/; do
+            [[ -d "$sender_dir" ]] || continue
+            # Remove trailing slash
+            sender_dir="${sender_dir%/}"
+            local sender_name
+            sender_name=$(basename "$sender_dir")
+
+            # If server filter is set, skip non-matching
+            if [[ -n "$SERVER_ID" && "$sender_name" != "$SERVER_ID" ]]; then
+                continue
+            fi
+
+            local file_count
+            file_count=$(find "$sender_dir" -type f 2>/dev/null | wc -l)
+            [[ $file_count -eq 0 ]] && continue
+
+            has_inbox_files=true
+            echo "  From ${BOLD}${sender_name}${RESET}:"
+            list_directory_files "$sender_dir" "    " "$SEARCH_QUERY"
+        done
+        [[ "$has_inbox_files" == "false" ]] && echo "  (empty)"
+    else
+        echo "  (not initialized)"
+    fi
+
+    # Show remote files if requested
+    if [[ "$SHOW_REMOTE" == "true" ]]; then
+        echo ""
+        echo "${BOLD}📡 Remote Servers${RESET} (files available to pull)"
+        echo "─────────────────────────────────────────────────────────"
+        list_remote_files
+    else
+        echo ""
+        echo "${DIM}Tip: Use --remote to scan remote server outboxes${RESET}"
+    fi
+
+    echo ""
+}
+
+#===============================================================================
+# HELPER: List files in a directory
+#===============================================================================
+list_directory_files() {
+    local dir="$1"
+    local prefix="${2:-  }"
+    local search="${3:-}"
+
+    if [[ ! -d "$dir" ]]; then
+        echo "${prefix}(not initialized)"
+        return
+    fi
+
+    local files=()
+    local total_size=0
+
+    while IFS= read -r -d '' file; do
+        local name="${file#$dir/}"
+        # Apply search filter if set
+        if [[ -n "$search" ]]; then
+            # shellcheck disable=SC2053
+            [[ "$name" == $search ]] || continue
+        fi
+        files+=("$file")
+    done < <(find "$dir" -type f -print0 2>/dev/null | sort -z)
+
+    if [[ ${#files[@]} -eq 0 ]]; then
+        echo "${prefix}(empty)"
+        return
+    fi
+
+    for file in "${files[@]}"; do
+        local name="${file#$dir/}"
+        local size mod_time
+        size=$(stat -c %s "$file" 2>/dev/null || echo 0)
+        mod_time=$(stat -c %Y "$file" 2>/dev/null || echo 0)
+        total_size=$((total_size + size))
+
+        local age
+        age=$(format_age "$mod_time")
+
+        printf "%s%-40s %8s  %s\n" "$prefix" "$name" "$(human_readable_size $size)" "$age"
+    done
+
+    echo "${prefix}─────────────────────────────────────────────────"
+    printf "%sTotal: %d files (%s)\n" "$prefix" "${#files[@]}" "$(human_readable_size $total_size)"
+}
+
+#===============================================================================
+# HELPER: Format file age
+#===============================================================================
+format_age() {
+    local mod_time="$1"
+    local now
+    now=$(date +%s)
+    local diff=$((now - mod_time))
+
+    if [[ $diff -lt 60 ]]; then
+        echo "just now"
+    elif [[ $diff -lt 3600 ]]; then
+        echo "$((diff / 60)) min ago"
+    elif [[ $diff -lt 86400 ]]; then
+        echo "$((diff / 3600)) hours ago"
+    elif [[ $diff -lt 604800 ]]; then
+        echo "$((diff / 86400)) days ago"
+    else
+        date -d "@$mod_time" "+%Y-%m-%d"
+    fi
+}
+
+#===============================================================================
+# HELPER: List remote server files via SSH
+#===============================================================================
+list_remote_files() {
+    local servers_file="${CONFIG_DIR}/servers.toml"
+    local parser="${SCRIPT_DIR}/lib/config_parser.py"
+
+    local python
+    python=$(get_config_python) || return 1
+
+    # Get enabled servers
+    local server_ids=()
+    while IFS= read -r sid; do
+        [[ -n "$sid" ]] && server_ids+=("$sid")
+    done < <("$python" "$parser" "$servers_file" list 2>/dev/null)
+
+    if [[ ${#server_ids[@]} -eq 0 ]]; then
+        echo "  No servers configured"
+        return
+    fi
+
+    for sid in "${server_ids[@]}"; do
+        # If server filter is set, skip non-matching
+        if [[ -n "$SERVER_ID" && "$sid" != "$SERVER_ID" ]]; then
+            continue
+        fi
+
+        # Get server config
+        local server_config
+        if ! server_config=$("$python" "$parser" "$servers_file" get "$sid" 2>/dev/null); then
+            continue
+        fi
+        eval "$server_config"
+
+        echo "  ${BOLD}${sid}${RESET} (${server_host}):"
+
+        # Build SSH options
+        local ssh_opts="-p ${server_port} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 -o BatchMode=yes"
+        if [[ -n "${server_identity_file:-}" ]]; then
+            local expanded_key="${server_identity_file/#\~/$HOME}"
+            [[ -f "$expanded_key" ]] && ssh_opts+=" -i ${expanded_key}"
+        fi
+
+        # Query remote outbox
+        local remote_base="${server_remote_base}"
+        local remote_output
+        # shellcheck disable=SC2086
+        if ! remote_output=$(ssh $ssh_opts "${server_user}@${server_host}" \
+            "find '${remote_base}/local/outbox' -type f -printf '%s|%f|%T@\n' 2>/dev/null | head -20" 2>/dev/null); then
+            echo "    ${RED}✗${RESET} Cannot connect"
+            continue
+        fi
+
+        if [[ -z "$remote_output" ]]; then
+            echo "    (empty)"
+            continue
+        fi
+
+        local total_size=0 count=0
+        while IFS='|' read -r size name mod_time; do
+            [[ -z "$size" ]] && continue
+            # Apply search filter if set
+            if [[ -n "$SEARCH_QUERY" ]]; then
+                # shellcheck disable=SC2053
+                [[ "$name" == $SEARCH_QUERY ]] || continue
+            fi
+            total_size=$((total_size + size))
+            ((count++)) || true
+            local age
+            age=$(format_age "${mod_time%.*}")
+            printf "    %-40s %8s  %s\n" "$name" "$(human_readable_size $size)" "$age"
+        done <<< "$remote_output"
+
+        if [[ $count -gt 0 ]]; then
+            echo "    ─────────────────────────────────────────────────"
+            printf "    Total: %d files (%s)\n" "$count" "$(human_readable_size $total_size)"
+        fi
+    done
+}
+
+#===============================================================================
+# ACTION: TREE - Hierarchical view of all files
+#===============================================================================
+action_tree() {
+    echo ""
+
+    local base_name
+    base_name=$(basename "$SYNC_BASE_DIR")
+
+    echo "${BOLD}${base_name}/${RESET}"
+
+    # Outbox
+    echo "├── 📤 outbox/"
+    print_tree_dir "$OUTBOX_DIR" "│   "
+
+    # Inbox
+    echo "├── 📥 inbox/"
+    if [[ -d "$INBOX_DIR" ]]; then
+        local inbox_dirs=("$INBOX_DIR"/*/)
+        local inbox_count=${#inbox_dirs[@]}
+        local idx=0
+
+        for sender_dir in "${inbox_dirs[@]}"; do
+            [[ -d "$sender_dir" ]] || continue
+            # Remove trailing slash
+            sender_dir="${sender_dir%/}"
+            ((idx++)) || true
+            local sender_name
+            sender_name=$(basename "$sender_dir")
+            local connector="├──"
+            local prefix="│   │   "
+            [[ $idx -eq $inbox_count ]] && connector="└──" && prefix="│       "
+
+            echo "│   ${connector} ${sender_name}/"
+            print_tree_dir "$sender_dir" "$prefix"
+        done
+
+        [[ $idx -eq 0 ]] && echo "│   └── (empty)"
+    else
+        echo "│   └── (not initialized)"
+    fi
+
+    # Remote (if requested)
+    if [[ "$SHOW_REMOTE" == "true" ]]; then
+        echo "└── 📡 remote/"
+        print_remote_tree
+    else
+        echo "└── 📡 remote/ ${DIM}(use --remote to fetch)${RESET}"
+    fi
+
+    echo ""
+}
+
+#===============================================================================
+# HELPER: Print tree for a directory
+#===============================================================================
+print_tree_dir() {
+    local dir="$1"
+    local prefix="$2"
+
+    if [[ ! -d "$dir" ]]; then
+        echo "${prefix}└── (empty)"
+        return
+    fi
+
+    local files=()
+    while IFS= read -r -d '' file; do
+        # Apply search filter if set
+        local name="${file#$dir/}"
+        if [[ -n "$SEARCH_QUERY" ]]; then
+            # shellcheck disable=SC2053
+            [[ "$name" == $SEARCH_QUERY ]] || continue
+        fi
+        files+=("$file")
+    done < <(find "$dir" -maxdepth 1 -type f -print0 2>/dev/null | sort -z)
+
+    if [[ ${#files[@]} -eq 0 ]]; then
+        echo "${prefix}└── (empty)"
+        return
+    fi
+
+    local count=${#files[@]}
+    local idx=0
+    for file in "${files[@]}"; do
+        ((idx++)) || true
+        local name
+        name=$(basename "$file")
+        local size
+        size=$(stat -c %s "$file" 2>/dev/null || echo 0)
+        local connector="├──"
+        [[ $idx -eq $count ]] && connector="└──"
+
+        printf "%s%s %s (%s)\n" "$prefix" "$connector" "$name" "$(human_readable_size $size)"
+    done
+}
+
+#===============================================================================
+# HELPER: Print remote tree via SSH
+#===============================================================================
+print_remote_tree() {
+    local servers_file="${CONFIG_DIR}/servers.toml"
+    local parser="${SCRIPT_DIR}/lib/config_parser.py"
+
+    local python
+    python=$(get_config_python) || return 1
+
+    local server_ids=()
+    while IFS= read -r sid; do
+        [[ -n "$sid" ]] && server_ids+=("$sid")
+    done < <("$python" "$parser" "$servers_file" list 2>/dev/null)
+
+    if [[ ${#server_ids[@]} -eq 0 ]]; then
+        echo "    └── (no servers)"
+        return
+    fi
+
+    local server_count=${#server_ids[@]}
+    local sidx=0
+
+    for sid in "${server_ids[@]}"; do
+        ((sidx++)) || true
+        local connector="├──"
+        local prefix="    │   "
+        [[ $sidx -eq $server_count ]] && connector="└──" && prefix="        "
+
+        # If server filter is set, skip non-matching
+        if [[ -n "$SERVER_ID" && "$sid" != "$SERVER_ID" ]]; then
+            continue
+        fi
+
+        # Get server config
+        local server_config
+        if ! server_config=$("$python" "$parser" "$servers_file" get "$sid" 2>/dev/null); then
+            echo "    ${connector} ${sid}/ ${RED}(disabled)${RESET}"
+            continue
+        fi
+        eval "$server_config"
+
+        echo "    ${connector} ${sid}/"
+
+        # Build SSH options
+        local ssh_opts="-p ${server_port} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 -o BatchMode=yes"
+        if [[ -n "${server_identity_file:-}" ]]; then
+            local expanded_key="${server_identity_file/#\~/$HOME}"
+            [[ -f "$expanded_key" ]] && ssh_opts+=" -i ${expanded_key}"
+        fi
+
+        # Query remote
+        local remote_base="${server_remote_base}"
+        local remote_output
+        # shellcheck disable=SC2086
+        if ! remote_output=$(ssh $ssh_opts "${server_user}@${server_host}" \
+            "find '${remote_base}/local/outbox' -maxdepth 1 -type f -printf '%s|%f\n' 2>/dev/null | head -10" 2>/dev/null); then
+            echo "${prefix}└── ${RED}(cannot connect)${RESET}"
+            continue
+        fi
+
+        if [[ -z "$remote_output" ]]; then
+            echo "${prefix}└── (empty)"
+            continue
+        fi
+
+        local files=()
+        while IFS='|' read -r size name; do
+            [[ -z "$name" ]] && continue
+            if [[ -n "$SEARCH_QUERY" ]]; then
+                # shellcheck disable=SC2053
+                [[ "$name" == $SEARCH_QUERY ]] || continue
+            fi
+            files+=("$size|$name")
+        done <<< "$remote_output"
+
+        if [[ ${#files[@]} -eq 0 ]]; then
+            echo "${prefix}└── (empty)"
+            continue
+        fi
+
+        local fcount=${#files[@]}
+        local fidx=0
+        for entry in "${files[@]}"; do
+            ((fidx++)) || true
+            IFS='|' read -r size name <<< "$entry"
+            local fconnector="├──"
+            [[ $fidx -eq $fcount ]] && fconnector="└──"
+            printf "%s%s %s (%s)\n" "$prefix" "$fconnector" "$name" "$(human_readable_size $size)"
+        done
+    done
 }
 
 #===============================================================================
