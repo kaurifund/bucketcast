@@ -44,6 +44,11 @@ sync-shuttle files -s dev-server --outbox --search "*.log"
 # Output formats
 sync-shuttle files --json           # For scripting
 sync-shuttle files --tree           # Tree view
+
+# Shorthand tree command
+sync-shuttle tree                   # Tree view of all locations
+sync-shuttle tree -s dev-server     # Tree view of one server
+sync-shuttle tree --remote          # Include remote files in tree
 ```
 
 ### Option B: Interactive TUI browser
@@ -109,6 +114,42 @@ Search results for "*.log":
   📡 dev-server/logs/error.log       1.1 MB
 
 Found 3 matches across 2 locations
+
+$ sync-shuttle tree
+
+~/.sync-shuttle/
+├── 📥 inbox/
+│   ├── dev-server/
+│   │   ├── config.json (1.2 KB)
+│   │   └── data.csv (45 KB)
+│   └── prod-backup/
+│       └── database.sql (2.3 MB)
+├── 📤 outbox/
+│   └── notes.txt (512 B)
+└── 📡 remote/
+    ├── dev-server/ (use --remote to fetch)
+    └── prod-backup/ (use --remote to fetch)
+
+$ sync-shuttle tree --remote
+
+~/.sync-shuttle/
+├── 📥 inbox/
+│   ├── dev-server/
+│   │   ├── config.json (1.2 KB)
+│   │   └── data.csv (45 KB)
+│   └── prod-backup/
+│       └── database.sql (2.3 MB)
+├── 📤 outbox/
+│   └── notes.txt (512 B)
+└── 📡 remote/
+    ├── dev-server/
+    │   ├── logs/
+    │   │   ├── app.log (12.3 MB)
+    │   │   └── error.log (1.1 MB)
+    │   ├── backup.tar.gz (156 MB)
+    │   └── config.json (2.1 KB)
+    └── prod-backup/
+        └── (empty)
 ```
 
 ## TUI Browser Design
@@ -155,11 +196,12 @@ Found 3 matches across 2 locations
 ## Implementation Plan
 
 1. [ ] Add `files` command with basic local listing
-2. [ ] Add search/filter functionality
-3. [ ] Add remote server querying (parallel SSH)
-4. [ ] Add caching layer for remote queries
-5. [ ] Add JSON output format
-6. [ ] Add TUI browser (separate PR)
+2. [ ] Add `tree` command for hierarchical view
+3. [ ] Add search/filter functionality (-q, --search)
+4. [ ] Add remote server querying (--remote, parallel SSH)
+5. [ ] Add caching layer for remote queries
+6. [ ] Add JSON output format (--json)
+7. [ ] Add TUI browser `browse` command (separate PR)
 
 ## Open Questions
 
