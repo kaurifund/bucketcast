@@ -201,10 +201,10 @@ $ sync-shuttle tree --remote
 4. [x] Add --inbox / --outbox location filters
 5. [x] Add remote server querying (--remote)
 6. [x] Add search summary ("Found X matches across Y locations")
-7. [ ] Add parallel SSH for remote queries
-8. [ ] Add caching layer for remote queries
-9. [ ] Add JSON output format (--json)
-10. [ ] Add TUI browser `browse` command (separate PR)
+7. [x] Add parallel SSH for remote queries
+8. [x] Add caching layer for remote queries (5 min TTL, --refresh flag)
+9. [x] Add JSON output format (--json)
+10. [x] Add TUI browser `browse` command
 
 ## Open Questions
 
