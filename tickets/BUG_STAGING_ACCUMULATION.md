@@ -2,8 +2,9 @@
 
 **Type:** Bug (Design Oversight)
 **Severity:** Medium
-**Status:** Open
-**Branch:** TBD
+**Status:** Fixed
+**Branch:** hotfix/staging-accumulation
+**PR:** #5
 
 ## Summary
 
@@ -44,47 +45,52 @@ Full analysis confirmed this is a **design oversight**:
 - No docs, comments, or tests validating accumulation as intentional
 - Cleanup exists for `tmp/` (on exit) but not for staging
 
-## Proposed Fix: Operation-Scoped Staging
+## Fix: Operation-Scoped Staging
 
-Instead of `rm -rf` on a shared directory, use **temp staging per operation**:
+Instead of a shared `files/` directory, use **per-operation staging with UUID**:
 
 ```bash
 # Before (accumulates):
-dest_dir="${REMOTE_DIR}/${SERVER_ID}/files"
+staging_dir="${REMOTE_DIR}/${SERVER_ID}/files"
 
 # After (isolated per push):
-dest_dir="${TMP_DIR}/push-${OPERATION_UUID}"
+staging_dir="${REMOTE_DIR}/${SERVER_ID}/push-${OPERATION_UUID}"
 ```
+
+### Why `remote/<server>/` not `tmp/`?
+- `remote/` is for per-server data - staging is server-specific
+- `tmp/` is for ephemeral scratch (locks, markers)
+- Keeping staging under `remote/<server>/` maintains logical organization
 
 ### Benefits:
 - Each push is isolated - no accumulation possible
-- Natural cleanup - temp dir removed after operation
-- No `rm -rf` on persistent user paths
-- Aligns with existing `tmp/` cleanup pattern
+- Server-specific organization preserved
+- Explicit cleanup after successful sync
 - Operation UUID provides auditability
 
 ### Implementation:
 
-**In `action_push()` (sync-shuttle.sh):**
+**In `action_push()` (sync-shuttle.sh:954-990):**
 
 ```bash
-# Create operation-specific staging directory
-local staging_dir="${TMP_DIR}/push-${OPERATION_UUID}"
+# Create operation-specific staging directory under server's remote dir
+# Uses UUID for isolation - each push gets its own staging, cleaned after sync
+local staging_dir="${REMOTE_DIR}/${SERVER_ID}/push-${OPERATION_UUID}"
 mkdir -p "$staging_dir"
 
 # Stage files
-perform_rsync_push_multi "${SOURCE_PATHS[@]}" "$staging_dir" ""
+perform_rsync_push "$SOURCE_PATH" "$staging_dir" ""
 
 # Sync to remote
 sync_to_remote "$SERVER_ID" "$staging_dir"
 
-# Cleanup (only on success, automatic for temp)
+# Cleanup after successful sync
 rm -rf "$staging_dir"
 ```
 
 **Cleanup on failure/interrupt:**
-- `TMP_DIR` is already cleaned on exit via `cleanup_on_exit()` trap in `lib/core.sh`
-- Failed operations leave staging for debugging, cleaned on next run
+- Failed operations leave staging for debugging
+- Can be manually cleaned: `rm -rf ~/.sync-shuttle/remote/*/push-*`
 
 ### Migration:
 

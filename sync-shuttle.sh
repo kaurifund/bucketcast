@@ -951,8 +951,9 @@ action_push() {
         exit 4
     fi
 
-    # Create operation-specific staging directory (avoids accumulation)
-    local staging_dir="${TMP_DIR}/push-${OPERATION_UUID}"
+    # Create operation-specific staging directory under server's remote dir
+    # Uses UUID for isolation - each push gets its own staging, cleaned after sync
+    local staging_dir="${REMOTE_DIR}/${SERVER_ID}/push-${OPERATION_UUID}"
     if ! validate_path_within_sandbox "$staging_dir"; then
         log_error "Staging path validation failed (security check)"
         exit 4
