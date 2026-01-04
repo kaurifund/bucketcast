@@ -168,11 +168,14 @@
 #   ./sync-shuttle.sh list servers
 #
 #   # Push a file to a server (dry-run first!)
-#   ./sync-shuttle.sh push --server myserver --source ~/file.txt --dry-run
-#   ./sync-shuttle.sh push --server myserver --source ~/file.txt
+#   ./sync-shuttle.sh push -s myserver ~/file.txt --dry-run
+#   ./sync-shuttle.sh push -s myserver ~/file.txt
 #
-#   # Push a directory
-#   ./sync-shuttle.sh push --server myserver --source ~/myproject/ --dry-run
+#   # Push multiple files
+#   ./sync-shuttle.sh push -s myserver file1.txt file2.txt config/
+#
+#   # Push current directory
+#   ./sync-shuttle.sh push -s myserver .
 #
 #   # Pull files from a server
 #   ./sync-shuttle.sh pull --server myserver --dry-run
@@ -191,7 +194,7 @@
 #   ./sync-shuttle.sh tui
 #
 #   # Verbose mode for debugging
-#   ./sync-shuttle.sh push --server myserver --source ~/file.txt --verbose
+#   ./sync-shuttle.sh push -s myserver ~/file.txt --verbose
 #
 #-------------------------------------------------------------------------------
 # USE CASE PATTERNS:
@@ -225,14 +228,14 @@
 #   Scenario: Push same files to multiple servers
 #   
 #   for server in web-01 web-02 web-03; do
-#       ./sync-shuttle.sh push --server "$server" --source ~/deploy/
+#       ./sync-shuttle.sh push -s "$server" ~/deploy/
 #   done
 #
 #   PATTERN 4: S3 Archive After Sync (if enabled)
 #   ──────────────────────────────────────────────
 #   Scenario: Archive to S3 after successful sync
-#   
-#   ./sync-shuttle.sh push --server myserver --source ~/data/ --s3-archive
+#
+#   ./sync-shuttle.sh push -s myserver ~/data/ --s3-archive
 #
 #   PATTERN 5: Collision Handling
 #   ─────────────────────────────
@@ -317,7 +320,7 @@ set -o pipefail  # Exit on pipe failure
 # SCRIPT METADATA
 #===============================================================================
 readonly SCRIPT_NAME="sync-shuttle"
-readonly SCRIPT_VERSION="1.1.1"
+readonly SCRIPT_VERSION="1.2.0"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 #===============================================================================
@@ -338,7 +341,7 @@ MAX_TRANSFER_SIZE="10G"
 #===============================================================================
 ACTION=""
 SERVER_ID=""
-SOURCE_PATH=""
+SOURCE_PATHS=()
 DRY_RUN="false"
 FORCE="false"
 VERBOSE="false"
@@ -346,6 +349,13 @@ QUIET="false"
 S3_ARCHIVE="false"
 OPERATION_UUID=""
 CONFIG_ARGS=()
+SEARCH_QUERY=""
+SHOW_REMOTE="false"
+SHOW_INBOX="true"
+SHOW_OUTBOX="true"
+OUTPUT_FORMAT="default"
+REFRESH_CACHE="false"
+CACHE_TTL_SECONDS=300  # 5 minutes default
 
 #===============================================================================
 # DERIVED PATHS (computed after config load)
@@ -358,6 +368,7 @@ OUTBOX_DIR=""
 LOGS_DIR=""
 ARCHIVE_DIR=""
 TMP_DIR=""
+CACHE_DIR=""
 LOG_FILE=""
 LOG_JSON_FILE=""
 
@@ -373,6 +384,7 @@ if [[ -t 1 ]]; then
     readonly CYAN=$'\033[0;36m'
     readonly WHITE=$'\033[0;37m'
     readonly BOLD=$'\033[1m'
+    readonly DIM=$'\033[2m'
     readonly RESET=$'\033[0m'
 else
     readonly RED=''
@@ -383,6 +395,7 @@ else
     readonly CYAN=''
     readonly WHITE=''
     readonly BOLD=''
+    readonly DIM=''
     readonly RESET=''
 fi
 
@@ -410,6 +423,21 @@ source_library "transfer.sh"
 source_library "s3.sh"
 
 #===============================================================================
+# HELPER: Resolve path to absolute
+#===============================================================================
+resolve_source_path() {
+    local src="$1"
+    if [[ -e "$src" ]]; then
+        if [[ -d "$src" ]]; then
+            src="$(cd "$src" && pwd)"
+        else
+            src="$(cd "$(dirname "$src")" && pwd)/$(basename "$src")"
+        fi
+    fi
+    echo "$src"
+}
+
+#===============================================================================
 # USAGE AND HELP
 #===============================================================================
 show_usage() {
@@ -423,10 +451,13 @@ ${BOLD}COMMANDS:${RESET}
     init                    Initialize sync-shuttle directory structure
     push                    Push files TO a remote server
     pull                    Pull files FROM a remote server
+    files                   List all files (inbox/outbox/remote)
+    tree                    Tree view of all files
+    browse                  Interactive file browser TUI
     list <servers|files>    List servers or files in a server's directory
     status                  Show sync status and recent operations
     config <subcommand>     Manage server configuration
-    tui                     Launch interactive terminal UI
+    tui                     Launch interactive terminal UI (dashboard)
 
 ${BOLD}CONFIG SUBCOMMANDS:${RESET}
     config get <server> <field>         Get a config value
@@ -436,11 +467,17 @@ ${BOLD}CONFIG SUBCOMMANDS:${RESET}
 
 ${BOLD}OPTIONS:${RESET}
     -s, --server <id>       Target server ID (required for push/pull)
-    -S, --source <path>     Source file or directory to push
+    -S, --source <path>     Source file or directory (legacy, use positional args)
     -n, --dry-run           Preview operations without executing
     -f, --force             Allow overwrites (prompts for confirmation)
     -v, --verbose           Verbose output
     -q, --quiet             Minimal output
+    --search <pattern>      Filter files by glob pattern (e.g. "*.txt")
+    --inbox                 Show only inbox (received files)
+    --outbox                Show only outbox (files you're sharing)
+    --remote                Include remote server files (requires SSH)
+    --refresh               Force refresh of cached remote file lists
+    --json                  Output in JSON format
     --s3-archive            Archive to S3 after successful sync
     -h, --help              Show this help message
     -V, --version           Show version
@@ -452,13 +489,22 @@ ${BOLD}EXAMPLES:${RESET}
     # List configured servers
     $SCRIPT_NAME list servers
 
-    # Push a file (always dry-run first!)
-    $SCRIPT_NAME push -s myserver -S ~/file.txt --dry-run
-    $SCRIPT_NAME push -s myserver -S ~/file.txt
+    # Push files (always dry-run first!)
+    $SCRIPT_NAME push -s myserver ./file.txt --dry-run
+    $SCRIPT_NAME push -s myserver ./file.txt
+    $SCRIPT_NAME push -s myserver file1.txt file2.txt dir/
+    $SCRIPT_NAME push -s myserver .                    # Push current directory
 
     # Pull from a server
     $SCRIPT_NAME pull -s myserver --dry-run
     $SCRIPT_NAME pull -s myserver
+
+    # Browse files
+    $SCRIPT_NAME files                    # List local inbox/outbox
+    $SCRIPT_NAME files --remote           # Include remote server files
+    $SCRIPT_NAME files --search "*.pdf"   # Search for PDFs
+    $SCRIPT_NAME tree                     # Tree view
+    $SCRIPT_NAME tree -s myserver --remote
 
 ${BOLD}SAFETY:${RESET}
     • All operations are sandboxed to ~/.sync-shuttle/
@@ -485,7 +531,7 @@ parse_arguments() {
 
     # First argument should be the command
     case "${1:-}" in
-        init|push|pull|list|status|config|tui|help|--help|-h)
+        init|push|pull|list|status|config|tui|browse|files|tree|help|--help|-h)
             ACTION="${1}"
             shift
             ;;
@@ -524,13 +570,14 @@ parse_arguments() {
                 shift 2
                 ;;
             -S|--source)
-                SOURCE_PATH="${2:-}"
-                if [[ -z "$SOURCE_PATH" ]]; then
+                # Legacy flag support - append to SOURCE_PATHS
+                local src="${2:-}"
+                if [[ -z "$src" ]]; then
                     log_error "--source requires an argument"
                     exit 2
                 fi
-                # Strip trailing slashes to preserve folder names in rsync
-                SOURCE_PATH="${SOURCE_PATH%/}"
+                # resolve_source_path uses `pwd` which strips trailing slashes
+                SOURCE_PATHS+=("$(resolve_source_path "$src")")
                 shift 2
                 ;;
             -n|--dry-run)
@@ -555,20 +602,59 @@ parse_arguments() {
                 S3_ARCHIVE="true"
                 shift
                 ;;
+            --search|--find)
+                SEARCH_QUERY="${2:-}"
+                if [[ -z "$SEARCH_QUERY" ]]; then
+                    log_error "--search requires a pattern"
+                    exit 2
+                fi
+                shift 2
+                ;;
+            --remote)
+                SHOW_REMOTE="true"
+                shift
+                ;;
+            --inbox)
+                SHOW_INBOX="true"
+                SHOW_OUTBOX="false"
+                shift
+                ;;
+            --outbox)
+                SHOW_OUTBOX="true"
+                SHOW_INBOX="false"
+                shift
+                ;;
+            --json)
+                OUTPUT_FORMAT="json"
+                shift
+                ;;
+            --refresh)
+                REFRESH_CACHE="true"
+                shift
+                ;;
             servers|files)
-                # Subcommand for list
+                # Subcommand for list command only
                 if [[ "$ACTION" == "list" ]]; then
                     LIST_SUBCOMMAND="${1}"
+                    shift
+                else
+                    # For other commands, treat as source path
+                    SOURCE_PATHS+=("$(resolve_source_path "$1")")
+                    shift
                 fi
-                shift
                 ;;
             -h|--help)
                 show_usage
                 exit 0
                 ;;
-            *)
+            -*)
                 log_error "Unknown option: ${1}"
                 exit 2
+                ;;
+            *)
+                # Positional argument - treat as source path for push
+                SOURCE_PATHS+=("$(resolve_source_path "$1")")
+                shift
                 ;;
         esac
     done
@@ -689,6 +775,7 @@ initialize_paths() {
     LOGS_DIR="${SYNC_BASE_DIR}/logs"
     ARCHIVE_DIR="${SYNC_BASE_DIR}/archive"
     TMP_DIR="${SYNC_BASE_DIR}/tmp"
+    CACHE_DIR="${SYNC_BASE_DIR}/cache"
     LOG_FILE="${LOGS_DIR}/sync.log"
     LOG_JSON_FILE="${LOGS_DIR}/sync.jsonl"
     VERSION_FILE="${SYNC_BASE_DIR}/.version"
@@ -731,6 +818,15 @@ dispatch_action() {
         status)
             action_status
             ;;
+        files)
+            action_files
+            ;;
+        tree)
+            action_tree
+            ;;
+        browse)
+            action_browse
+            ;;
         config)
             action_config
             ;;
@@ -767,6 +863,7 @@ action_init() {
         "$LOGS_DIR"
         "$ARCHIVE_DIR"
         "$TMP_DIR"
+        "$CACHE_DIR"
     )
     
     for dir in "${dirs[@]}"; do
@@ -814,7 +911,7 @@ action_init() {
     echo "Next steps:"
     echo "  1. Edit ${CONFIG_DIR}/servers.toml to add your servers"
     echo "  2. Run '$SCRIPT_NAME list servers' to verify"
-    echo "  3. Use '$SCRIPT_NAME push --server <id> --source <path> --dry-run' to test"
+    echo "  3. Use '$SCRIPT_NAME push -s <server> <file> --dry-run' to test"
 }
 
 create_default_config() {
@@ -920,21 +1017,24 @@ action_push() {
     OPERATION_UUID=$(generate_uuid)
     local timestamp_start
     timestamp_start=$(get_iso_timestamp)
-    
+
     log_info "Starting PUSH operation [${OPERATION_UUID}]"
     log_info "Server: ${SERVER_ID}"
-    
-    # Validate source path exists
-    if [[ -z "$SOURCE_PATH" ]]; then
+
+    # Validate source paths exist
+    if [[ ${#SOURCE_PATHS[@]} -eq 0 ]]; then
         log_error "Source path is required for push operation"
-        echo "Use: $SCRIPT_NAME push --server $SERVER_ID --source <path>"
+        echo "Use: $SCRIPT_NAME push -s $SERVER_ID <file-or-dir> [more files...]"
         exit 2
     fi
-    
-    if [[ ! -e "$SOURCE_PATH" ]]; then
-        log_error "Source path does not exist: $SOURCE_PATH"
-        exit 5
-    fi
+
+    # Validate all source paths exist
+    for src in "${SOURCE_PATHS[@]}"; do
+        if [[ ! -e "$src" ]]; then
+            log_error "Source path does not exist: $src"
+            exit 5
+        fi
+    done
     
     # Load server configuration
     local server_config
@@ -960,23 +1060,28 @@ action_push() {
     fi
     mkdir -p "$staging_dir"
 
-    # Perform pre-flight checks
-    preflight_push "$SOURCE_PATH" "$staging_dir"
+    # Perform pre-flight checks for each source
+    for src in "${SOURCE_PATHS[@]}"; do
+        preflight_push "$src" "$staging_dir"
+    done
 
     # Build remote destination for display
     local remote_dest="${server_user}@${server_host}:${server_remote_base}/local/inbox/${HOSTNAME:-$(hostname)}/"
 
+    # Format sources for display
+    local sources_display="${SOURCE_PATHS[*]}"
+
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "[DRY-RUN] Would transfer:"
-        log_info "  Source:       $SOURCE_PATH"
+        log_info "  Source(s):    $sources_display"
         log_info "  Local stage:  $staging_dir"
         log_info "  Remote dest:  $remote_dest"
-        perform_rsync_push "$SOURCE_PATH" "$staging_dir" "--dry-run"
+        perform_rsync_push_multi "${SOURCE_PATHS[@]}" "$staging_dir" "--dry-run"
         # Clean up dry-run staging
         rm -rf "$staging_dir"
     else
-        log_info "Transferring: $SOURCE_PATH -> $staging_dir"
-        perform_rsync_push "$SOURCE_PATH" "$staging_dir" ""
+        log_info "Transferring: $sources_display -> $staging_dir"
+        perform_rsync_push_multi "${SOURCE_PATHS[@]}" "$staging_dir" ""
 
         # Remote sync
         sync_to_remote "$SERVER_ID" "$staging_dir"
@@ -994,8 +1099,11 @@ action_push() {
     local timestamp_end
     timestamp_end=$(get_iso_timestamp)
 
+    # Invalidate cache for this server (files have changed)
+    invalidate_cache "$SERVER_ID"
+
     # Log the operation
-    log_operation "$OPERATION_UUID" "push" "$SERVER_ID" "$SOURCE_PATH" "$staging_dir" \
+    log_operation "$OPERATION_UUID" "push" "$SERVER_ID" "$sources_display" "$staging_dir" \
         "$timestamp_start" "$timestamp_end" "SUCCESS"
 
     log_success "Push operation completed [${OPERATION_UUID}]"
@@ -1052,11 +1160,14 @@ action_pull() {
     
     local timestamp_end
     timestamp_end=$(get_iso_timestamp)
-    
+
+    # Invalidate cache for this server (files have changed)
+    invalidate_cache "$SERVER_ID"
+
     # Log the operation
     log_operation "$OPERATION_UUID" "pull" "$SERVER_ID" "remote" "$dest_dir" \
         "$timestamp_start" "$timestamp_end" "SUCCESS"
-    
+
     log_success "Pull operation completed [${OPERATION_UUID}]"
 }
 
@@ -1123,7 +1234,7 @@ list_servers() {
             "$port"
         printf "    └─ %s\n" "$name"
 
-        ((found_servers++))
+        ((found_servers++)) || true
     done < <("$python" "$parser" "$servers_file" list-detail)
 
     if [[ $found_servers -eq 0 ]]; then
@@ -1234,6 +1345,871 @@ action_status() {
 }
 
 #===============================================================================
+# ACTION: FILES - List files across inbox/outbox/remote
+#===============================================================================
+action_files() {
+    # JSON output mode
+    if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+        action_files_json
+        return
+    fi
+
+    # Track totals for search summary
+    local total_matches=0
+    local total_locations=0
+
+    echo ""
+    if [[ -n "$SEARCH_QUERY" ]]; then
+        echo "${BOLD}Search Results for \"${SEARCH_QUERY}\"${RESET}"
+    else
+        echo "${BOLD}Sync Shuttle Files${RESET}"
+    fi
+    echo "═════════════════════════════════════════════════════════"
+
+    # Show outbox (files you're sharing)
+    if [[ "$SHOW_OUTBOX" == "true" ]]; then
+        echo ""
+        echo "${BOLD}📤 Your Outbox${RESET} (files others can pull from you)"
+        echo "─────────────────────────────────────────────────────────"
+        local outbox_result
+        outbox_result=$(list_directory_files_counted "$OUTBOX_DIR" "" "$SEARCH_QUERY")
+        local outbox_count
+        outbox_count=$(echo "$outbox_result" | tail -1)
+        if [[ $outbox_count -gt 0 ]]; then
+            total_matches=$((total_matches + outbox_count))
+            ((total_locations++)) || true
+        fi
+        echo "$outbox_result" | head -n -1
+    fi
+
+    # Show inbox (files received)
+    if [[ "$SHOW_INBOX" == "true" ]]; then
+        echo ""
+        echo "${BOLD}📥 Your Inbox${RESET} (files you received)"
+        echo "─────────────────────────────────────────────────────────"
+        if [[ -d "$INBOX_DIR" ]]; then
+            local has_inbox_files=false
+            for sender_dir in "$INBOX_DIR"/*/; do
+                [[ -d "$sender_dir" ]] || continue
+                sender_dir="${sender_dir%/}"
+                local sender_name
+                sender_name=$(basename "$sender_dir")
+
+                if [[ -n "$SERVER_ID" && "$sender_name" != "$SERVER_ID" ]]; then
+                    continue
+                fi
+
+                local inbox_result
+                inbox_result=$(list_directory_files_counted "$sender_dir" "    " "$SEARCH_QUERY")
+                local inbox_count
+                inbox_count=$(echo "$inbox_result" | tail -1)
+
+                if [[ $inbox_count -gt 0 ]]; then
+                    has_inbox_files=true
+                    total_matches=$((total_matches + inbox_count))
+                    ((total_locations++)) || true
+                    echo "  From ${BOLD}${sender_name}${RESET}:"
+                    echo "$inbox_result" | head -n -1
+                fi
+            done
+            if [[ "$has_inbox_files" == "false" ]]; then
+                echo "  (empty)"
+            fi
+        else
+            echo "  (not initialized)"
+        fi
+    fi
+
+    # Show remote files if requested
+    if [[ "$SHOW_REMOTE" == "true" ]]; then
+        echo ""
+        echo "${BOLD}📡 Remote Servers${RESET} (files available to pull)"
+        echo "─────────────────────────────────────────────────────────"
+        local remote_result
+        remote_result=$(list_remote_files_counted)
+        local remote_count
+        remote_count=$(echo "$remote_result" | tail -1)
+        if [[ $remote_count -gt 0 ]]; then
+            total_matches=$((total_matches + remote_count))
+            ((total_locations++)) || true
+        fi
+        echo "$remote_result" | head -n -1
+    elif [[ -z "$SEARCH_QUERY" ]]; then
+        echo ""
+        echo "${DIM}Tip: Use --remote to scan remote server outboxes${RESET}"
+    fi
+
+    # Search summary
+    if [[ -n "$SEARCH_QUERY" ]]; then
+        echo ""
+        echo "─────────────────────────────────────────────────────────"
+        if [[ $total_matches -gt 0 ]]; then
+            echo "Found ${BOLD}${total_matches}${RESET} matches across ${BOLD}${total_locations}${RESET} locations"
+        else
+            echo "No matches found for \"${SEARCH_QUERY}\""
+        fi
+    fi
+
+    echo ""
+}
+
+#===============================================================================
+# ACTION: FILES (JSON output mode)
+#===============================================================================
+action_files_json() {
+    echo -n "{"
+
+    local first_section=true
+
+    # Outbox
+    if [[ "$SHOW_OUTBOX" == "true" ]]; then
+        echo -n '"outbox":'
+        list_directory_files_json "$OUTBOX_DIR" "$SEARCH_QUERY"
+        first_section=false
+    fi
+
+    # Inbox
+    if [[ "$SHOW_INBOX" == "true" ]]; then
+        if [[ "$first_section" != "true" ]]; then
+            echo -n ","
+        fi
+        first_section=false
+
+        echo -n '"inbox":{'
+
+        if [[ -d "$INBOX_DIR" ]]; then
+            local first_sender=true
+            for sender_dir in "$INBOX_DIR"/*/; do
+                [[ -d "$sender_dir" ]] || continue
+                sender_dir="${sender_dir%/}"
+                local sender_name
+                sender_name=$(basename "$sender_dir")
+
+                if [[ -n "$SERVER_ID" && "$sender_name" != "$SERVER_ID" ]]; then
+                    continue
+                fi
+
+                if [[ "$first_sender" != "true" ]]; then
+                    echo -n ","
+                fi
+                first_sender=false
+
+                echo -n "\"$sender_name\":"
+                list_directory_files_json "$sender_dir" "$SEARCH_QUERY"
+            done
+        fi
+
+        echo -n "}"
+    fi
+
+    # Remote
+    if [[ "$SHOW_REMOTE" == "true" ]]; then
+        if [[ "$first_section" != "true" ]]; then
+            echo -n ","
+        fi
+        echo -n '"remote":'
+        list_remote_files_json
+    fi
+
+    echo "}"
+}
+
+#===============================================================================
+# HELPER: List files in a directory (returns count as last line)
+#===============================================================================
+list_directory_files_counted() {
+    local dir="$1"
+    local prefix="${2:-  }"
+    local search="${3:-}"
+
+    if [[ ! -d "$dir" ]]; then
+        echo "${prefix}(not initialized)"
+        echo "0"
+        return
+    fi
+
+    local files=()
+    local total_size=0
+
+    while IFS= read -r -d '' file; do
+        local name="${file#$dir/}"
+        # Apply search filter if set
+        if [[ -n "$search" ]]; then
+            # shellcheck disable=SC2053
+            [[ "$name" == $search ]] || continue
+        fi
+        files+=("$file")
+    done < <(find "$dir" -type f -print0 2>/dev/null | sort -z)
+
+    if [[ ${#files[@]} -eq 0 ]]; then
+        echo "${prefix}(empty)"
+        echo "0"
+        return
+    fi
+
+    for file in "${files[@]}"; do
+        local name="${file#$dir/}"
+        local size mod_time
+        size=$(stat -c %s "$file" 2>/dev/null || echo 0)
+        mod_time=$(stat -c %Y "$file" 2>/dev/null || echo 0)
+        total_size=$((total_size + size))
+
+        local age
+        age=$(format_age "$mod_time")
+
+        printf "%s%-40s %8s  %s\n" "$prefix" "$name" "$(human_readable_size $size)" "$age"
+    done
+
+    echo "${prefix}─────────────────────────────────────────────────"
+    printf "%sTotal: %d files (%s)\n" "$prefix" "${#files[@]}" "$(human_readable_size $total_size)"
+    echo "${#files[@]}"
+}
+
+#===============================================================================
+# HELPER: Format file age
+#===============================================================================
+format_age() {
+    local mod_time="$1"
+    local now
+    now=$(date +%s)
+    local diff=$((now - mod_time))
+
+    if [[ $diff -lt 60 ]]; then
+        echo "just now"
+    elif [[ $diff -lt 3600 ]]; then
+        echo "$((diff / 60)) min ago"
+    elif [[ $diff -lt 86400 ]]; then
+        echo "$((diff / 3600)) hours ago"
+    elif [[ $diff -lt 604800 ]]; then
+        echo "$((diff / 86400)) days ago"
+    else
+        date -d "@$mod_time" "+%Y-%m-%d"
+    fi
+}
+
+#===============================================================================
+# JSON: List directory files as JSON array
+#===============================================================================
+list_directory_files_json() {
+    local dir="$1"
+    local search="${2:-}"
+
+    if [[ ! -d "$dir" ]]; then
+        echo "[]"
+        return
+    fi
+
+    local first=true
+    echo -n "["
+
+    while IFS= read -r -d '' file; do
+        local name="${file#$dir/}"
+        # Apply search filter if set
+        if [[ -n "$search" ]]; then
+            # shellcheck disable=SC2053
+            [[ "$name" == $search ]] || continue
+        fi
+
+        local size mod_time
+        size=$(stat -c %s "$file" 2>/dev/null || echo 0)
+        mod_time=$(stat -c %Y "$file" 2>/dev/null || echo 0)
+
+        if [[ "$first" != "true" ]]; then
+            echo -n ","
+        fi
+        first=false
+
+        # Output JSON object (escaped properly)
+        printf '{"name":"%s","size":%d,"modified":%d,"path":"%s"}' \
+            "$name" "$size" "$mod_time" "$file"
+    done < <(find "$dir" -type f -print0 2>/dev/null | sort -z)
+
+    echo "]"
+}
+
+#===============================================================================
+# JSON: Query remote servers and return JSON
+#===============================================================================
+list_remote_files_json() {
+    local servers_file="${CONFIG_DIR}/servers.toml"
+    local parser="${SCRIPT_DIR}/lib/config_parser.py"
+
+    local python
+    python=$(get_config_python) || { echo "{}"; return 1; }
+
+    # Get enabled servers
+    local server_ids=()
+    while IFS= read -r sid; do
+        [[ -n "$sid" ]] && server_ids+=("$sid")
+    done < <("$python" "$parser" "$servers_file" list 2>/dev/null)
+
+    if [[ ${#server_ids[@]} -eq 0 ]]; then
+        echo "{}"
+        return
+    fi
+
+    # Filter servers if -s flag is set
+    local filtered_ids=()
+    for sid in "${server_ids[@]}"; do
+        if [[ -n "$SERVER_ID" && "$sid" != "$SERVER_ID" ]]; then
+            continue
+        fi
+        filtered_ids+=("$sid")
+    done
+
+    # Create temp directory for parallel results
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    trap "rm -rf '$temp_dir'" RETURN
+
+    # Launch parallel queries
+    local pids=()
+    for sid in "${filtered_ids[@]}"; do
+        query_remote_server "$sid" "$temp_dir/$sid.out" &
+        pids+=($!)
+    done
+
+    # Wait for all queries to complete
+    for pid in "${pids[@]}"; do
+        wait "$pid" 2>/dev/null || true
+    done
+
+    # Build JSON output
+    local first_server=true
+    echo -n "{"
+
+    for sid in "${filtered_ids[@]}"; do
+        local result_file="$temp_dir/$sid.out"
+        if [[ ! -f "$result_file" ]]; then
+            continue
+        fi
+
+        local first_line
+        first_line=$(head -1 "$result_file")
+        local status="${first_line%%|*}"
+
+        if [[ "$status" != "OK" ]]; then
+            continue
+        fi
+
+        if [[ "$first_server" != "true" ]]; then
+            echo -n ","
+        fi
+        first_server=false
+
+        echo -n "\"$sid\":["
+
+        # Check if cached
+        local is_cached=false
+        tail -1 "$result_file" | grep -q "^CACHED$" && is_cached=true
+
+        # Parse file list
+        local remote_output
+        if [[ "$is_cached" == "true" ]]; then
+            remote_output=$(sed '1d;$d' "$result_file")
+        else
+            remote_output=$(tail -n +2 "$result_file")
+        fi
+
+        local first_file=true
+        while IFS='|' read -r size name mod_time; do
+            [[ -z "$size" ]] && continue
+            if [[ -n "$SEARCH_QUERY" ]]; then
+                # shellcheck disable=SC2053
+                [[ "$name" == $SEARCH_QUERY ]] || continue
+            fi
+
+            if [[ "$first_file" != "true" ]]; then
+                echo -n ","
+            fi
+            first_file=false
+
+            printf '{"name":"%s","size":%d,"modified":%d}' \
+                "$name" "$size" "${mod_time%.*}"
+        done <<< "$remote_output"
+
+        echo -n "]"
+    done
+
+    echo "}"
+}
+
+#===============================================================================
+# CACHE: Get cache file path for a server
+#===============================================================================
+get_cache_file() {
+    local server_id="$1"
+    echo "${CACHE_DIR}/remote-${server_id}.cache"
+}
+
+#===============================================================================
+# CACHE: Check if cache is valid (not expired)
+#===============================================================================
+is_cache_valid() {
+    local cache_file="$1"
+
+    # If refresh requested, cache is invalid
+    [[ "$REFRESH_CACHE" == "true" ]] && return 1
+
+    # If cache doesn't exist, it's invalid
+    [[ ! -f "$cache_file" ]] && return 1
+
+    # Check age of cache file
+    local cache_mtime
+    cache_mtime=$(stat -c %Y "$cache_file" 2>/dev/null || echo 0)
+    local now
+    now=$(date +%s)
+    local age=$((now - cache_mtime))
+
+    # Return valid if within TTL
+    [[ $age -lt $CACHE_TTL_SECONDS ]]
+}
+
+#===============================================================================
+# CACHE: Read cached data for a server
+#===============================================================================
+read_cache() {
+    local server_id="$1"
+    local cache_file
+    cache_file=$(get_cache_file "$server_id")
+
+    if is_cache_valid "$cache_file"; then
+        cat "$cache_file"
+        return 0
+    fi
+    return 1
+}
+
+#===============================================================================
+# CACHE: Write data to cache for a server
+#===============================================================================
+write_cache() {
+    local server_id="$1"
+    local data="$2"
+    local cache_file
+    cache_file=$(get_cache_file "$server_id")
+
+    # Ensure cache directory exists
+    mkdir -p "$CACHE_DIR" 2>/dev/null || true
+
+    # Write data to cache
+    echo "$data" > "$cache_file"
+}
+
+#===============================================================================
+# CACHE: Invalidate cache for a server (called after push/pull)
+#===============================================================================
+invalidate_cache() {
+    local server_id="$1"
+    local cache_file
+    cache_file=$(get_cache_file "$server_id")
+
+    if [[ -f "$cache_file" ]]; then
+        rm -f "$cache_file"
+        log_debug "Invalidated cache for: $server_id"
+    fi
+}
+
+#===============================================================================
+# CACHE: Invalidate all remote caches
+#===============================================================================
+invalidate_all_caches() {
+    if [[ -d "$CACHE_DIR" ]]; then
+        rm -f "${CACHE_DIR}"/remote-*.cache 2>/dev/null || true
+        log_debug "Invalidated all remote caches"
+    fi
+}
+
+#===============================================================================
+# HELPER: Query single remote server (for parallel execution, with caching)
+#===============================================================================
+query_remote_server() {
+    local sid="$1"
+    local output_file="$2"
+    local servers_file="${CONFIG_DIR}/servers.toml"
+    local parser="${SCRIPT_DIR}/lib/config_parser.py"
+
+    # Check cache first
+    local cached_data
+    if cached_data=$(read_cache "$sid" 2>/dev/null); then
+        echo "$cached_data" > "$output_file"
+        # Append cache indicator
+        echo "CACHED" >> "$output_file"
+        return 0
+    fi
+
+    local python
+    python=$(get_config_python) || return 1
+
+    # Get server config
+    local server_config
+    if ! server_config=$("$python" "$parser" "$servers_file" get "$sid" 2>/dev/null); then
+        echo "DISABLED" > "$output_file"
+        return 1
+    fi
+    eval "$server_config"
+
+    # Build SSH options
+    local ssh_opts="-p ${server_port} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 -o BatchMode=yes"
+    if [[ -n "${server_identity_file:-}" ]]; then
+        local expanded_key="${server_identity_file/#\~/$HOME}"
+        [[ -f "$expanded_key" ]] && ssh_opts+=" -i ${expanded_key}"
+    fi
+
+    # Query remote outbox
+    local remote_base="${server_remote_base}"
+    local remote_output
+    # shellcheck disable=SC2086
+    if ! remote_output=$(ssh $ssh_opts "${server_user}@${server_host}" \
+        "find '${remote_base}/local/outbox' -type f -printf '%s|%f|%T@\n' 2>/dev/null | head -50" 2>/dev/null); then
+        echo "ERROR|${server_host}" > "$output_file"
+        return 1
+    fi
+
+    # Build result
+    local result
+    result=$(printf "OK|%s\n%s" "${server_host}" "$remote_output")
+
+    # Write to cache
+    write_cache "$sid" "$result"
+
+    # Write results to output file
+    echo "$result" > "$output_file"
+}
+
+#===============================================================================
+# HELPER: List remote server files via SSH (parallel, returns total count)
+#===============================================================================
+list_remote_files_counted() {
+    local servers_file="${CONFIG_DIR}/servers.toml"
+    local parser="${SCRIPT_DIR}/lib/config_parser.py"
+    local grand_total=0
+
+    local python
+    python=$(get_config_python) || { echo "0"; return 1; }
+
+    # Get enabled servers
+    local server_ids=()
+    while IFS= read -r sid; do
+        [[ -n "$sid" ]] && server_ids+=("$sid")
+    done < <("$python" "$parser" "$servers_file" list 2>/dev/null)
+
+    if [[ ${#server_ids[@]} -eq 0 ]]; then
+        echo "  No servers configured"
+        echo "0"
+        return
+    fi
+
+    # Filter servers if -s flag is set
+    local filtered_ids=()
+    for sid in "${server_ids[@]}"; do
+        if [[ -n "$SERVER_ID" && "$sid" != "$SERVER_ID" ]]; then
+            continue
+        fi
+        filtered_ids+=("$sid")
+    done
+
+    if [[ ${#filtered_ids[@]} -eq 0 ]]; then
+        echo "  No matching servers"
+        echo "0"
+        return
+    fi
+
+    # Create temp directory for parallel results
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    trap "rm -rf '$temp_dir'" RETURN
+
+    # Launch parallel queries
+    local pids=()
+    for sid in "${filtered_ids[@]}"; do
+        query_remote_server "$sid" "$temp_dir/$sid.out" &
+        pids+=($!)
+    done
+
+    # Show status while waiting
+    local cache_count=0
+    local query_count=0
+    for sid in "${filtered_ids[@]}"; do
+        local cache_file
+        cache_file=$(get_cache_file "$sid")
+        if is_cache_valid "$cache_file"; then
+            ((cache_count++)) || true
+        else
+            ((query_count++)) || true
+        fi
+    done
+
+    if [[ $query_count -gt 0 ]]; then
+        echo "  ${DIM}Querying ${query_count} server(s)...${RESET}"
+    fi
+
+    # Wait for all queries to complete
+    for pid in "${pids[@]}"; do
+        wait "$pid" 2>/dev/null || true
+    done
+
+    # Process results
+    for sid in "${filtered_ids[@]}"; do
+        local result_file="$temp_dir/$sid.out"
+        if [[ ! -f "$result_file" ]]; then
+            echo "  ${BOLD}${sid}${RESET}:"
+            echo "    ${RED}✗${RESET} Query failed"
+            continue
+        fi
+
+        local first_line
+        first_line=$(head -1 "$result_file")
+        local status="${first_line%%|*}"
+        local host="${first_line#*|}"
+
+        # Check if result came from cache
+        local is_cached=""
+        if tail -1 "$result_file" | grep -q "^CACHED$"; then
+            is_cached=" ${DIM}(cached)${RESET}"
+        fi
+
+        echo "  ${BOLD}${sid}${RESET} (${host})${is_cached}:"
+
+        if [[ "$status" == "ERROR" ]]; then
+            echo "    ${RED}✗${RESET} Cannot connect"
+            continue
+        elif [[ "$status" == "DISABLED" ]]; then
+            echo "    ${YELLOW}○${RESET} Disabled"
+            continue
+        fi
+
+        # Parse file list (skip first status line and CACHED marker if present)
+        local remote_output
+        if [[ -n "$is_cached" ]]; then
+            # Skip first line (status) and last line (CACHED marker)
+            remote_output=$(sed '1d;$d' "$result_file")
+        else
+            remote_output=$(tail -n +2 "$result_file")
+        fi
+
+        if [[ -z "$remote_output" ]]; then
+            echo "    (empty)"
+            continue
+        fi
+
+        local total_size=0 count=0
+        while IFS='|' read -r size name mod_time; do
+            [[ -z "$size" ]] && continue
+            # Apply search filter if set
+            if [[ -n "$SEARCH_QUERY" ]]; then
+                # shellcheck disable=SC2053
+                [[ "$name" == $SEARCH_QUERY ]] || continue
+            fi
+            total_size=$((total_size + size))
+            ((count++)) || true
+            local age
+            age=$(format_age "${mod_time%.*}")
+            printf "    %-40s %8s  %s\n" "$name" "$(human_readable_size $size)" "$age"
+        done <<< "$remote_output"
+
+        if [[ $count -gt 0 ]]; then
+            echo "    ─────────────────────────────────────────────────"
+            printf "    Total: %d files (%s)\n" "$count" "$(human_readable_size $total_size)"
+            grand_total=$((grand_total + count))
+        else
+            echo "    (empty)"
+        fi
+    done
+
+    echo "$grand_total"
+}
+
+#===============================================================================
+# ACTION: TREE - Hierarchical view of all files
+#===============================================================================
+action_tree() {
+    echo ""
+
+    local base_name
+    base_name=$(basename "$SYNC_BASE_DIR")
+
+    echo "${BOLD}${base_name}/${RESET}"
+
+    # Outbox
+    echo "├── 📤 outbox/"
+    print_tree_dir "$OUTBOX_DIR" "│   "
+
+    # Inbox
+    echo "├── 📥 inbox/"
+    if [[ -d "$INBOX_DIR" ]]; then
+        local inbox_dirs=("$INBOX_DIR"/*/)
+        local inbox_count=${#inbox_dirs[@]}
+        local idx=0
+
+        for sender_dir in "${inbox_dirs[@]}"; do
+            [[ -d "$sender_dir" ]] || continue
+            # Remove trailing slash
+            sender_dir="${sender_dir%/}"
+            ((idx++)) || true
+            local sender_name
+            sender_name=$(basename "$sender_dir")
+            local connector="├──"
+            local prefix="│   │   "
+            [[ $idx -eq $inbox_count ]] && connector="└──" && prefix="│       "
+
+            echo "│   ${connector} ${sender_name}/"
+            print_tree_dir "$sender_dir" "$prefix"
+        done
+
+        [[ $idx -eq 0 ]] && echo "│   └── (empty)"
+    else
+        echo "│   └── (not initialized)"
+    fi
+
+    # Remote (if requested)
+    if [[ "$SHOW_REMOTE" == "true" ]]; then
+        echo "└── 📡 remote/"
+        print_remote_tree
+    else
+        echo "└── 📡 remote/ ${DIM}(use --remote to fetch)${RESET}"
+    fi
+
+    echo ""
+}
+
+#===============================================================================
+# HELPER: Print tree for a directory
+#===============================================================================
+print_tree_dir() {
+    local dir="$1"
+    local prefix="$2"
+
+    if [[ ! -d "$dir" ]]; then
+        echo "${prefix}└── (empty)"
+        return
+    fi
+
+    local files=()
+    while IFS= read -r -d '' file; do
+        # Apply search filter if set
+        local name="${file#$dir/}"
+        if [[ -n "$SEARCH_QUERY" ]]; then
+            # shellcheck disable=SC2053
+            [[ "$name" == $SEARCH_QUERY ]] || continue
+        fi
+        files+=("$file")
+    done < <(find "$dir" -maxdepth 1 -type f -print0 2>/dev/null | sort -z)
+
+    if [[ ${#files[@]} -eq 0 ]]; then
+        echo "${prefix}└── (empty)"
+        return
+    fi
+
+    local count=${#files[@]}
+    local idx=0
+    for file in "${files[@]}"; do
+        ((idx++)) || true
+        local name
+        name=$(basename "$file")
+        local size
+        size=$(stat -c %s "$file" 2>/dev/null || echo 0)
+        local connector="├──"
+        [[ $idx -eq $count ]] && connector="└──"
+
+        printf "%s%s %s (%s)\n" "$prefix" "$connector" "$name" "$(human_readable_size $size)"
+    done
+}
+
+#===============================================================================
+# HELPER: Print remote tree via SSH
+#===============================================================================
+print_remote_tree() {
+    local servers_file="${CONFIG_DIR}/servers.toml"
+    local parser="${SCRIPT_DIR}/lib/config_parser.py"
+
+    local python
+    python=$(get_config_python) || return 1
+
+    local server_ids=()
+    while IFS= read -r sid; do
+        [[ -n "$sid" ]] && server_ids+=("$sid")
+    done < <("$python" "$parser" "$servers_file" list 2>/dev/null)
+
+    if [[ ${#server_ids[@]} -eq 0 ]]; then
+        echo "    └── (no servers)"
+        return
+    fi
+
+    local server_count=${#server_ids[@]}
+    local sidx=0
+
+    for sid in "${server_ids[@]}"; do
+        ((sidx++)) || true
+        local connector="├──"
+        local prefix="    │   "
+        [[ $sidx -eq $server_count ]] && connector="└──" && prefix="        "
+
+        # If server filter is set, skip non-matching
+        if [[ -n "$SERVER_ID" && "$sid" != "$SERVER_ID" ]]; then
+            continue
+        fi
+
+        # Get server config
+        local server_config
+        if ! server_config=$("$python" "$parser" "$servers_file" get "$sid" 2>/dev/null); then
+            echo "    ${connector} ${sid}/ ${RED}(disabled)${RESET}"
+            continue
+        fi
+        eval "$server_config"
+
+        echo "    ${connector} ${sid}/"
+
+        # Build SSH options
+        local ssh_opts="-p ${server_port} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 -o BatchMode=yes"
+        if [[ -n "${server_identity_file:-}" ]]; then
+            local expanded_key="${server_identity_file/#\~/$HOME}"
+            [[ -f "$expanded_key" ]] && ssh_opts+=" -i ${expanded_key}"
+        fi
+
+        # Query remote
+        local remote_base="${server_remote_base}"
+        local remote_output
+        # shellcheck disable=SC2086
+        if ! remote_output=$(ssh $ssh_opts "${server_user}@${server_host}" \
+            "find '${remote_base}/local/outbox' -maxdepth 1 -type f -printf '%s|%f\n' 2>/dev/null | head -10" 2>/dev/null); then
+            echo "${prefix}└── ${RED}(cannot connect)${RESET}"
+            continue
+        fi
+
+        if [[ -z "$remote_output" ]]; then
+            echo "${prefix}└── (empty)"
+            continue
+        fi
+
+        local files=()
+        while IFS='|' read -r size name; do
+            [[ -z "$name" ]] && continue
+            if [[ -n "$SEARCH_QUERY" ]]; then
+                # shellcheck disable=SC2053
+                [[ "$name" == $SEARCH_QUERY ]] || continue
+            fi
+            files+=("$size|$name")
+        done <<< "$remote_output"
+
+        if [[ ${#files[@]} -eq 0 ]]; then
+            echo "${prefix}└── (empty)"
+            continue
+        fi
+
+        local fcount=${#files[@]}
+        local fidx=0
+        for entry in "${files[@]}"; do
+            ((fidx++)) || true
+            IFS='|' read -r size name <<< "$entry"
+            local fconnector="├──"
+            [[ $fidx -eq $fcount ]] && fconnector="└──"
+            printf "%s%s %s (%s)\n" "$prefix" "$fconnector" "$name" "$(human_readable_size $size)"
+        done
+    done
+}
+
+#===============================================================================
 # ACTION: CONFIG
 #===============================================================================
 action_config() {
@@ -1299,7 +2275,30 @@ action_config() {
 }
 
 #===============================================================================
-# ACTION: TUI
+# ACTION: BROWSE - Interactive file browser TUI
+#===============================================================================
+action_browse() {
+    local tui_script="${SCRIPT_DIR}/tui/sync_tui.py"
+    local venv_python="${SCRIPT_DIR}/.venv/bin/python"
+
+    if [[ ! -f "$tui_script" ]]; then
+        log_error "TUI script not found: $tui_script"
+        exit 1
+    fi
+
+    if [[ ! -f "$venv_python" ]]; then
+        log_error "Python venv not found: ${SCRIPT_DIR}/.venv"
+        echo "Run the installer to set up the TUI environment:"
+        echo "  curl -fsSL https://raw.githubusercontent.com/kaurifund/bucketcast/main/install.sh | bash"
+        exit 8
+    fi
+
+    # Launch TUI in browse mode
+    exec "$venv_python" "$tui_script" --base-dir "$SYNC_BASE_DIR" --config-dir "$CONFIG_DIR" --mode browse
+}
+
+#===============================================================================
+# ACTION: TUI (Dashboard)
 #===============================================================================
 action_tui() {
     local tui_script="${SCRIPT_DIR}/tui/sync_tui.py"
@@ -1317,8 +2316,8 @@ action_tui() {
         exit 8
     fi
 
-    # Launch TUI using venv Python
-    exec "$venv_python" "$tui_script" --base-dir "$SYNC_BASE_DIR" --config-dir "$CONFIG_DIR"
+    # Launch TUI in dashboard mode
+    exec "$venv_python" "$tui_script" --base-dir "$SYNC_BASE_DIR" --config-dir "$CONFIG_DIR" --mode dashboard
 }
 
 #===============================================================================

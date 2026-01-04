@@ -117,6 +117,70 @@ perform_rsync_push() {
 }
 
 #===============================================================================
+# RSYNC: Push multiple files/dirs to local staging
+#===============================================================================
+perform_rsync_push_multi() {
+    # Last two args are dest and extra_options, everything else is sources
+    local -a args=("$@")
+    local num_args=${#args[@]}
+    local extra_options="${args[$num_args-1]}"
+    local dest="${args[$num_args-2]}"
+    local -a sources=("${args[@]:0:$num_args-2}")
+
+    log_debug "rsync push (multi): ${sources[*]} -> $dest"
+
+    # Build rsync command
+    local -a rsync_opts
+    mapfile -t rsync_opts < <(build_rsync_options "$extra_options")
+
+    # Ensure destination exists
+    if [[ "$extra_options" != *"--dry-run"* ]]; then
+        ensure_directory "$dest"
+    fi
+
+    # Show dry-run notice
+    if [[ "$extra_options" == *"--dry-run"* ]]; then
+        log_dry_run_notice
+    fi
+
+    # Execute rsync with multiple sources
+    log_info "Running rsync..."
+    log_separator
+
+    local rsync_exit_code
+    if rsync "${rsync_opts[@]}" "${sources[@]}" "$dest/"; then
+        rsync_exit_code=0
+    else
+        rsync_exit_code=$?
+    fi
+
+    log_separator
+
+    if [[ $rsync_exit_code -ne 0 ]]; then
+        log_error "rsync failed with exit code: $rsync_exit_code"
+        case $rsync_exit_code in
+            1)  log_error "Syntax or usage error" ;;
+            2)  log_error "Protocol incompatibility" ;;
+            3)  log_error "Errors selecting input/output files" ;;
+            10) log_error "Error in socket I/O" ;;
+            11) log_error "Error in file I/O" ;;
+            12) log_error "Error in rsync protocol data stream" ;;
+            23) log_error "Partial transfer due to errors" ;;
+            24) log_warn "Partial transfer due to vanished files (may be OK)" ;;
+            *)  log_error "Unknown rsync error" ;;
+        esac
+
+        # Exit code 24 (vanished files) is often acceptable
+        if [[ $rsync_exit_code -ne 24 ]]; then
+            return $rsync_exit_code
+        fi
+    fi
+
+    log_info "Local staging complete"
+    return 0
+}
+
+#===============================================================================
 # SYNC: To remote server
 #===============================================================================
 sync_to_remote() {
