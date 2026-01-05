@@ -12,13 +12,17 @@
 | 2026-01-05 | - | Updated plan with global/ namespace | Per user feedback |
 | 2026-01-05 | - | Added git strategy analysis | PR #2, #3 overlap identified |
 | 2026-01-05 | 0 | Implemented reserved namespace validation | Added check in validate_server_id() |
+| 2026-01-05 | 1 | Updated pull to check global/ and per-server outbox | Modified perform_rsync_pull() |
+| 2026-01-05 | 1 | Verification: syntax check passed | ✅ |
+| 2026-01-05 | 1 | Verification: exit code 23 handling for missing dirs | ✅ |
+| 2026-01-05 | 1 | Verification: e2e with remote server | ⏸️ Pending integration test |
 
 ---
 
 ## Task Completion Status
 
 - [x] Task 0: Add reserved namespace validation ("global")
-- [ ] Task 1: Update pull to check global/ and per-server outbox
+- [x] Task 1: Update pull to check global/ and per-server outbox
 - [ ] Task 2: Update directory initialization
 - [ ] Task 3: Auto-populate local outbox on push (optional)
 - [ ] Task 4: Update documentation
