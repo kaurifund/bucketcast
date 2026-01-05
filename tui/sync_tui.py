@@ -628,14 +628,7 @@ class SyncShuttleTUI(App):
         max-height: 100%;
     }
 
-    /* Scrollable areas */
-    ScrollableContainer {
-        height: 100%;
-    }
-
-    #server-list {
-        height: 100%;
-    }
+    /* Scrollable areas - no height constraint, let content size naturally */
     """
 
     TITLE = "Sync Shuttle"
