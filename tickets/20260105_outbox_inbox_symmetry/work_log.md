@@ -19,6 +19,8 @@
 | 2026-01-05 | 2 | Reviewed directory initialization | No changes needed |
 | 2026-01-05 | 2 | Verification: OUTBOX_DIR created in init | ✅ (line 766) |
 | 2026-01-05 | 2 | Verification: subdirs created on-demand | ✅ (by design) |
+| 2026-01-05 | 3 | Decision: Option C selected | Separate share command (Task 6) |
+| 2026-01-05 | 3 | No changes to push command | Push remains simple |
 
 ---
 
@@ -27,7 +29,7 @@
 - [x] Task 0: Add reserved namespace validation ("global")
 - [x] Task 1: Update pull to check global/ and per-server outbox
 - [x] Task 2: Update directory initialization
-- [ ] Task 3: Auto-populate local outbox on push (optional)
+- [x] Task 3: Auto-populate local outbox on push (optional)
 - [ ] Task 4: Update documentation
 - [ ] Task 5: Update tests
 - [ ] Task 6: Add share command
