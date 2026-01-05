@@ -87,6 +87,7 @@ After initialization, Sync Shuttle creates:
 | `init` | Initialize directory structure |
 | `push` | Push files TO a remote server |
 | `pull` | Pull files FROM a remote server |
+| `share` | Share files via outbox (for others to pull) |
 | `list servers` | List configured servers |
 | `list files` | List files for a server |
 | `status` | Show sync status |
@@ -103,6 +104,9 @@ After initialization, Sync Shuttle creates:
 | `-v, --verbose` | Verbose output |
 | `-q, --quiet` | Minimal output |
 | `--s3-archive` | Archive to S3 after sync |
+| `--global` | Share with all servers (share command) |
+| `--list` | List shared files (share command) |
+| `--remove` | Remove from share (share command) |
 
 ### Examples
 
@@ -124,6 +128,18 @@ sync-shuttle.sh push -s myserver -S ~/updated.txt --force
 
 # With S3 archival
 sync-shuttle.sh push -s myserver -S ~/backup/ --s3-archive
+
+# Share a file globally (all servers can pull)
+sync-shuttle share --global -S ~/shared-doc.pdf
+
+# Share with a specific server
+sync-shuttle share -s myserver -S ~/for-myserver.txt
+
+# List all shared files
+sync-shuttle share --list
+
+# Remove a file from global share
+sync-shuttle share --global --remove -S shared-doc.pdf
 ```
 
 ## Configuration

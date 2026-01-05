@@ -36,6 +36,8 @@
 | 2026-01-05 | 7 | Added migration call for < 1.2.0 | sync-shuttle.sh:717-719 |
 | 2026-01-05 | 7 | Bumped version to 1.2.0 | sync-shuttle.sh:320 |
 | 2026-01-05 | 7 | Verification: files moved to global/ | ✅ |
+| 2026-01-05 | - | Audit: verified installer triggers migrations | ✅ |
+| 2026-01-05 | - | Audit: added share command to README.md | Fixed |
 
 ---
 
