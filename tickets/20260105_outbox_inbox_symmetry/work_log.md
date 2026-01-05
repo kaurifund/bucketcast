@@ -42,6 +42,13 @@
 | 2026-01-05 | - | Added ShareScreen to TUI | tui/sync_tui.py:528-656 |
 | 2026-01-05 | - | Added Share button and 'h' keybinding | MainScreen updated |
 | 2026-01-05 | - | Verification: Python syntax check passed | ✅ |
+| 2026-01-05 | - | Redesigned TUI with Apple UX principles | Full rewrite |
+| 2026-01-05 | - | Added tabbed navigation | Servers, Inbox, Outbox, Activity |
+| 2026-01-05 | - | Added quick stats bar | File counts in header |
+| 2026-01-05 | - | Added modal dialogs | QuickShareDialog, QuickPushDialog |
+| 2026-01-05 | - | Added empty states with guidance | Better onboarding |
+| 2026-01-05 | - | Improved keyboard shortcuts | p=Push, u=Pull, s=Share, 1-4=Tabs |
+| 2026-01-05 | - | Verification: Python syntax check passed | ✅ |
 
 ---
 

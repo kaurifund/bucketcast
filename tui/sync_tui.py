@@ -3,23 +3,21 @@
 Sync Shuttle - Terminal User Interface
 =======================================
 
-Interactive TUI for managing file synchronization operations.
-Built with Textual for a modern, responsive terminal interface.
+A clean, intuitive interface for file synchronization.
+Designed with clarity, simplicity, and user experience in mind.
 
 Usage:
-    python3 sync_tui.py --base-dir ~/.sync-shuttle --config-dir ~/.sync-shuttle/config
+    python3 sync_tui.py [--base-dir ~/.sync-shuttle]
 """
 
 import argparse
-import asyncio
 import json
-import os
 import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 try:
     from textual.app import App, ComposeResult
@@ -36,10 +34,16 @@ try:
         Static,
         Switch,
         Tree,
+        TabbedContent,
+        TabPane,
+        Rule,
+        ProgressBar,
     )
     from textual.binding import Binding
-    from textual.screen import Screen
+    from textual.screen import Screen, ModalScreen
+    from textual.message import Message
     from rich.text import Text
+    from rich.panel import Panel
 except ImportError:
     print("Error: Required packages not installed.")
     print("Run: pip install textual rich")
@@ -47,12 +51,12 @@ except ImportError:
 
 
 # =============================================================================
-# DATA MODELS (Schema Contracts)
+# DATA MODELS
 # =============================================================================
 
 @dataclass
 class ServerConfig:
-    """Server configuration schema."""
+    """Server configuration."""
     id: str
     name: str
     host: str
@@ -65,7 +69,7 @@ class ServerConfig:
 
 @dataclass
 class SyncOperation:
-    """Sync operation log entry schema."""
+    """Sync operation log entry."""
     uuid: str
     operation: str
     server_id: str
@@ -82,7 +86,6 @@ class SyncOperation:
 # CONFIGURATION LOADER
 # =============================================================================
 
-# Python 3.11+ has tomllib built-in
 try:
     import tomllib
 except ImportError:
@@ -92,16 +95,12 @@ except ImportError:
         tomllib = None
 
 
-def load_servers(config_dir: Path) -> list[ServerConfig]:
-    """Load server configurations from TOML config file."""
+def load_servers(config_dir: Path) -> List[ServerConfig]:
+    """Load server configurations from TOML."""
     servers_file = config_dir / "servers.toml"
     servers = []
 
-    if not servers_file.exists():
-        return servers
-
-    if tomllib is None:
-        print("Warning: TOML support not available. Run: pip install tomli", file=sys.stderr)
+    if not servers_file.exists() or tomllib is None:
         return servers
 
     with open(servers_file, "rb") as f:
@@ -122,17 +121,16 @@ def load_servers(config_dir: Path) -> list[ServerConfig]:
     return servers
 
 
-def load_operations(logs_dir: Path, limit: int = 50) -> list[SyncOperation]:
-    """Load recent sync operations from log file."""
+def load_operations(logs_dir: Path, limit: int = 20) -> List[SyncOperation]:
+    """Load recent sync operations."""
     log_file = logs_dir / "sync.jsonl"
     operations = []
-    
+
     if not log_file.exists():
         return operations
-    
-    # Read last N lines
+
     lines = log_file.read_text().strip().split("\n")[-limit:]
-    
+
     for line in reversed(lines):
         if not line:
             continue
@@ -152,516 +150,604 @@ def load_operations(logs_dir: Path, limit: int = 50) -> list[SyncOperation]:
             ))
         except json.JSONDecodeError:
             continue
-    
+
     return operations
 
 
+def human_size(size: int) -> str:
+    """Convert bytes to human readable size."""
+    for unit in ["B", "KB", "MB", "GB"]:
+        if size < 1024:
+            return f"{size:.0f} {unit}"
+        size /= 1024
+    return f"{size:.1f} TB"
+
+
+def relative_time(timestamp: str) -> str:
+    """Convert timestamp to relative time."""
+    if not timestamp:
+        return ""
+    try:
+        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        now = datetime.now(dt.tzinfo)
+        delta = now - dt
+
+        if delta.days > 0:
+            return f"{delta.days}d ago"
+        elif delta.seconds > 3600:
+            return f"{delta.seconds // 3600}h ago"
+        elif delta.seconds > 60:
+            return f"{delta.seconds // 60}m ago"
+        else:
+            return "just now"
+    except:
+        return ""
+
+
 # =============================================================================
-# TUI COMPONENTS
+# COMPONENTS - Reusable UI Elements
 # =============================================================================
 
-class ServerList(ListView):
-    """Server list widget."""
-    
-    def __init__(self, servers: list[ServerConfig], **kwargs):
+class ServerCard(Static):
+    """A card displaying server info with status."""
+
+    class Selected(Message):
+        """Emitted when server is selected."""
+        def __init__(self, server_id: str) -> None:
+            self.server_id = server_id
+            super().__init__()
+
+    def __init__(self, server: ServerConfig, **kwargs):
         super().__init__(**kwargs)
-        self.servers = servers
-    
+        self.server = server
+        self.add_class("server-card")
+        if server.enabled:
+            self.add_class("enabled")
+
     def compose(self) -> ComposeResult:
-        for server in self.servers:
-            status = "●" if server.enabled else "○"
-            color = "green" if server.enabled else "red"
-            yield ListItem(
-                Static(f"[{color}]{status}[/] {server.id} - {server.name}"),
-                id=f"server-{server.id}"
-            )
+        s = self.server
+        status = "●" if s.enabled else "○"
+        status_class = "status-on" if s.enabled else "status-off"
+
+        yield Static(f"[{status_class}]{status}[/] [bold]{s.name}[/bold]", classes="server-name")
+        yield Static(f"  {s.user}@{s.host}", classes="server-detail")
+
+    def on_click(self) -> None:
+        self.post_message(self.Selected(self.server.id))
 
 
-class OperationTable(DataTable):
-    """Recent operations table widget."""
-    
-    def __init__(self, operations: list[SyncOperation], **kwargs):
-        super().__init__(**kwargs)
-        self.operations = operations
-    
-    def on_mount(self) -> None:
-        self.add_columns("Status", "Op", "Server", "Time", "UUID")
-        
-        for op in self.operations[:20]:
-            status_icon = "✓" if op.status == "SUCCESS" else "✗"
-            time_str = op.timestamp_start[11:19] if op.timestamp_start else ""
-            
-            self.add_row(
-                status_icon,
-                op.operation.upper()[:4],
-                op.server_id[:12],
-                time_str,
-                op.uuid[:8],
-            )
+class FileTree(Tree):
+    """File browser with intuitive interaction."""
 
+    class FileSelected(Message):
+        """Emitted when a file is selected."""
+        def __init__(self, path: Path) -> None:
+            self.path = path
+            super().__init__()
 
-class FileBrowser(Tree):
-    """File browser widget for inbox/outbox."""
-    
     def __init__(self, root_path: Path, label: str = "Files", **kwargs):
         super().__init__(label, **kwargs)
         self.root_path = root_path
-    
+        self.show_root = True
+
     def on_mount(self) -> None:
         self.root.expand()
         self._populate_tree(self.root, self.root_path)
-    
+
     def _populate_tree(self, node, path: Path, depth: int = 0) -> None:
-        if depth > 3 or not path.exists():
+        if depth > 4 or not path.exists():
             return
-        
+
         try:
-            for item in sorted(path.iterdir()):
+            items = sorted(path.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower()))
+            for item in items:
                 if item.name.startswith("."):
                     continue
-                
+
                 if item.is_dir():
-                    child = node.add(f"📁 {item.name}", expand=False)
-                    # Add placeholder for lazy loading
+                    # Show folder with file count
+                    try:
+                        count = sum(1 for _ in item.rglob("*") if _.is_file())
+                        label = f"📁 {item.name}" + (f" ({count})" if count else "")
+                    except:
+                        label = f"📁 {item.name}"
+                    child = node.add(label, expand=False)
                     child.data = item
+                    # Recursively populate
+                    self._populate_tree(child, item, depth + 1)
                 else:
-                    size = item.stat().st_size
-                    size_str = self._human_size(size)
-                    node.add_leaf(f"📄 {item.name} ({size_str})")
+                    size = human_size(item.stat().st_size)
+                    leaf = node.add_leaf(f"📄 {item.name}  [dim]{size}[/dim]")
+                    leaf.data = item
         except PermissionError:
             pass
-    
-    @staticmethod
-    def _human_size(size: int) -> str:
-        for unit in ["B", "KB", "MB", "GB"]:
-            if size < 1024:
-                return f"{size:.1f}{unit}"
-            size /= 1024
-        return f"{size:.1f}TB"
+
+    def on_tree_node_selected(self, event) -> None:
+        if event.node.data and isinstance(event.node.data, Path):
+            if event.node.data.is_file():
+                self.post_message(self.FileSelected(event.node.data))
 
 
-class StatusPanel(Static):
-    """Status panel showing sync-shuttle state."""
-    
+class QuickStats(Static):
+    """Quick statistics overview."""
+
     def __init__(self, base_dir: Path, **kwargs):
         super().__init__(**kwargs)
         self.base_dir = base_dir
-    
+
     def compose(self) -> ComposeResult:
-        dirs = {
-            "Config": self.base_dir / "config",
-            "Remote": self.base_dir / "remote",
-            "Inbox": self.base_dir / "local" / "inbox",
-            "Outbox": self.base_dir / "local" / "outbox",
-            "Logs": self.base_dir / "logs",
-        }
-        
-        lines = ["[bold]Directory Status[/bold]\n"]
-        
-        for name, path in dirs.items():
-            if path.exists():
-                try:
-                    count = sum(1 for _ in path.rglob("*") if _.is_file())
-                except:
-                    count = 0
-                lines.append(f"  [green]✓[/] {name}: {count} files")
-            else:
-                lines.append(f"  [red]✗[/] {name}: missing")
-        
-        yield Static("\n".join(lines))
+        inbox = self.base_dir / "local" / "inbox"
+        outbox = self.base_dir / "local" / "outbox"
+
+        inbox_count = sum(1 for _ in inbox.rglob("*") if _.is_file()) if inbox.exists() else 0
+        outbox_count = sum(1 for _ in outbox.rglob("*") if _.is_file()) if outbox.exists() else 0
+
+        yield Static(
+            f"[bold]📥 Inbox[/bold] {inbox_count} files   "
+            f"[bold]📤 Outbox[/bold] {outbox_count} files",
+            classes="quick-stats"
+        )
+
+
+class EmptyState(Static):
+    """Helpful empty state message."""
+
+    def __init__(self, icon: str, title: str, subtitle: str, action: str = "", **kwargs):
+        super().__init__(**kwargs)
+        self.icon = icon
+        self.title = title
+        self.subtitle = subtitle
+        self.action = action
+        self.add_class("empty-state")
+
+    def compose(self) -> ComposeResult:
+        yield Static(f"\n\n{self.icon}", classes="empty-icon")
+        yield Static(f"[bold]{self.title}[/bold]", classes="empty-title")
+        yield Static(f"[dim]{self.subtitle}[/dim]", classes="empty-subtitle")
+        if self.action:
+            yield Static(f"\n{self.action}", classes="empty-action")
 
 
 # =============================================================================
-# SCREENS
+# MODAL DIALOGS - Clean, focused interactions
+# =============================================================================
+
+class ConfirmDialog(ModalScreen):
+    """Simple confirmation dialog."""
+
+    def __init__(self, title: str, message: str, confirm_label: str = "Confirm"):
+        super().__init__()
+        self.title_text = title
+        self.message = message
+        self.confirm_label = confirm_label
+
+    def compose(self) -> ComposeResult:
+        with Container(id="dialog"):
+            yield Static(f"[bold]{self.title_text}[/bold]", classes="dialog-title")
+            yield Static(self.message, classes="dialog-message")
+            with Horizontal(classes="dialog-buttons"):
+                yield Button("Cancel", id="cancel", variant="default")
+                yield Button(self.confirm_label, id="confirm", variant="primary")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(event.button.id == "confirm")
+
+
+class QuickShareDialog(ModalScreen):
+    """Quick share dialog - simple and focused."""
+
+    def __init__(self, base_dir: Path, config_dir: Path, source_path: str = ""):
+        super().__init__()
+        self.base_dir = base_dir
+        self.config_dir = config_dir
+        self.source_path = source_path
+
+    def compose(self) -> ComposeResult:
+        servers = load_servers(self.config_dir)
+        enabled_servers = [s for s in servers if s.enabled]
+
+        with Container(id="share-dialog"):
+            yield Static("[bold]Share a File[/bold]", classes="dialog-title")
+            yield Static("Make a file available for others to pull.", classes="dialog-subtitle")
+
+            yield Static("\nFile to share:", classes="field-label")
+            yield Input(
+                value=self.source_path,
+                placeholder="~/document.pdf or drag file here",
+                id="share-path"
+            )
+
+            yield Static("\nShare with:", classes="field-label")
+            with Horizontal(classes="share-options"):
+                yield Button("🌐 Everyone", id="share-global", variant="primary")
+                for server in enabled_servers[:3]:  # Show up to 3 servers
+                    yield Button(f"📡 {server.name[:10]}", id=f"share-{server.id}")
+
+            with Horizontal(classes="dialog-buttons"):
+                yield Button("Cancel", id="cancel")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "cancel":
+            self.dismiss(None)
+        elif event.button.id.startswith("share-"):
+            path_input = self.query_one("#share-path", Input)
+            source = path_input.value.strip()
+
+            if not source:
+                self.notify("Please enter a file path", severity="warning")
+                return
+
+            if event.button.id == "share-global":
+                self.dismiss(("global", source))
+            else:
+                server_id = event.button.id[6:]  # Remove "share-" prefix
+                self.dismiss((server_id, source))
+
+
+class QuickPushDialog(ModalScreen):
+    """Quick push dialog - streamlined for common use case."""
+
+    def __init__(self, base_dir: Path, config_dir: Path, source_path: str = ""):
+        super().__init__()
+        self.base_dir = base_dir
+        self.config_dir = config_dir
+        self.source_path = source_path
+
+    def compose(self) -> ComposeResult:
+        servers = load_servers(self.config_dir)
+        enabled_servers = [s for s in servers if s.enabled]
+
+        with Container(id="push-dialog"):
+            yield Static("[bold]Push File[/bold]", classes="dialog-title")
+            yield Static("Send a file directly to a server's inbox.", classes="dialog-subtitle")
+
+            yield Static("\nFile to push:", classes="field-label")
+            yield Input(
+                value=self.source_path,
+                placeholder="~/document.pdf",
+                id="push-path"
+            )
+
+            yield Static("\nDestination:", classes="field-label")
+            if enabled_servers:
+                for server in enabled_servers:
+                    yield Button(
+                        f"📡 {server.name} ({server.host})",
+                        id=f"push-{server.id}",
+                        classes="server-button"
+                    )
+            else:
+                yield Static("[dim]No servers configured[/dim]")
+
+            with Horizontal(classes="dialog-buttons"):
+                yield Button("Cancel", id="cancel")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "cancel":
+            self.dismiss(None)
+        elif event.button.id.startswith("push-"):
+            path_input = self.query_one("#push-path", Input)
+            source = path_input.value.strip()
+
+            if not source:
+                self.notify("Please enter a file path", severity="warning")
+                return
+
+            server_id = event.button.id[5:]  # Remove "push-" prefix
+            self.dismiss((server_id, source))
+
+
+# =============================================================================
+# MAIN SCREEN - Dashboard with tabs
 # =============================================================================
 
 class MainScreen(Screen):
-    """Main dashboard screen."""
-    
+    """Main dashboard with tabbed navigation."""
+
     BINDINGS = [
         Binding("q", "quit", "Quit"),
         Binding("r", "refresh", "Refresh"),
         Binding("p", "push", "Push"),
-        Binding("l", "pull", "Pull"),
-        Binding("h", "share", "Share"),
-        Binding("s", "servers", "Servers"),
-        Binding("o", "operations", "Operations"),
+        Binding("u", "pull", "Pull"),  # 'u' for upload/pull
+        Binding("s", "share", "Share"),
+        Binding("1", "tab_servers", "Servers"),
+        Binding("2", "tab_inbox", "Inbox"),
+        Binding("3", "tab_outbox", "Outbox"),
+        Binding("4", "tab_activity", "Activity"),
+        Binding("?", "help", "Help"),
     ]
-    
+
     def __init__(self, base_dir: Path, config_dir: Path, **kwargs):
         super().__init__(**kwargs)
         self.base_dir = base_dir
         self.config_dir = config_dir
         self.logs_dir = base_dir / "logs"
-    
+        self.selected_server: Optional[str] = None
+
     def compose(self) -> ComposeResult:
         yield Header()
-        
-        with Container(id="main-container"):
-            with Horizontal(id="top-row"):
-                with Vertical(id="servers-panel", classes="panel"):
-                    yield Static("[bold]Servers[/bold]", classes="panel-title")
-                    servers = load_servers(self.config_dir)
-                    if servers:
-                        yield ServerList(servers, id="server-list")
-                    else:
-                        yield Static("No servers configured.\nEdit config/servers.toml")
-                
-                with Vertical(id="status-panel", classes="panel"):
-                    yield Static("[bold]Status[/bold]", classes="panel-title")
-                    yield StatusPanel(self.base_dir)
-            
-            with Vertical(id="operations-panel", classes="panel"):
-                yield Static("[bold]Recent Operations[/bold]", classes="panel-title")
-                operations = load_operations(self.logs_dir)
-                if operations:
-                    yield OperationTable(operations, id="operations-table")
-                else:
-                    yield Static("No operations logged yet.")
-            
-            with Horizontal(id="actions-row"):
-                yield Button("Push", id="btn-push", variant="primary")
-                yield Button("Pull", id="btn-pull", variant="primary")
-                yield Button("Share", id="btn-share", variant="primary")
-                yield Button("Dry Run", id="btn-dryrun", variant="warning")
-                yield Button("Status", id="btn-status", variant="default")
-                yield Button("Refresh", id="btn-refresh", variant="default")
-        
+
+        # Quick stats bar
+        with Container(id="stats-bar"):
+            yield QuickStats(self.base_dir)
+            with Horizontal(id="quick-actions"):
+                yield Button("↑ Push", id="btn-push", variant="primary")
+                yield Button("↓ Pull", id="btn-pull", variant="primary")
+                yield Button("⇄ Share", id="btn-share", variant="success")
+
+        # Main tabbed content
+        with TabbedContent(id="main-tabs"):
+            with TabPane("Servers", id="tab-servers"):
+                yield self._compose_servers_tab()
+
+            with TabPane("Inbox", id="tab-inbox"):
+                yield self._compose_inbox_tab()
+
+            with TabPane("Outbox", id="tab-outbox"):
+                yield self._compose_outbox_tab()
+
+            with TabPane("Activity", id="tab-activity"):
+                yield self._compose_activity_tab()
+
         yield Footer()
-    
-    def action_refresh(self) -> None:
-        """Refresh the display."""
-        self.refresh()
-    
+
+    def _compose_servers_tab(self) -> ComposeResult:
+        servers = load_servers(self.config_dir)
+
+        if not servers:
+            yield EmptyState(
+                icon="📡",
+                title="No Servers Configured",
+                subtitle="Add servers to start syncing files",
+                action="Edit ~/.sync-shuttle/config/servers.toml"
+            )
+        else:
+            yield Static("[bold]Your Servers[/bold]\n", classes="section-title")
+            with ScrollableContainer(id="server-list"):
+                for server in servers:
+                    yield ServerCard(server)
+
+    def _compose_inbox_tab(self) -> ComposeResult:
+        inbox_path = self.base_dir / "local" / "inbox"
+
+        yield Static(
+            "[bold]📥 Inbox[/bold] — Files received from other servers\n",
+            classes="section-title"
+        )
+
+        if inbox_path.exists() and any(inbox_path.iterdir()):
+            with ScrollableContainer():
+                yield FileTree(inbox_path, "Received Files")
+        else:
+            yield EmptyState(
+                icon="📥",
+                title="Inbox Empty",
+                subtitle="Files you pull from servers appear here",
+                action="Press [bold]u[/bold] to pull from a server"
+            )
+
+    def _compose_outbox_tab(self) -> ComposeResult:
+        outbox_path = self.base_dir / "local" / "outbox"
+
+        yield Static(
+            "[bold]📤 Outbox[/bold] — Files shared for others to pull\n",
+            classes="section-title"
+        )
+
+        # Show structure explanation
+        yield Static(
+            "[dim]├─ global/     → Available to all servers\n"
+            "└─ <server>/   → Available to specific server[/dim]\n",
+            classes="structure-hint"
+        )
+
+        if outbox_path.exists() and any(outbox_path.iterdir()):
+            with ScrollableContainer():
+                yield FileTree(outbox_path, "Shared Files")
+        else:
+            yield EmptyState(
+                icon="📤",
+                title="Nothing Shared",
+                subtitle="Share files so others can pull them",
+                action="Press [bold]s[/bold] to share a file"
+            )
+
+    def _compose_activity_tab(self) -> ComposeResult:
+        operations = load_operations(self.logs_dir)
+
+        yield Static("[bold]📊 Recent Activity[/bold]\n", classes="section-title")
+
+        if not operations:
+            yield EmptyState(
+                icon="📊",
+                title="No Activity Yet",
+                subtitle="Your sync operations will appear here",
+                action=""
+            )
+        else:
+            table = DataTable(id="activity-table")
+            table.add_columns("Status", "Type", "Server", "Time", "Details")
+
+            for op in operations[:15]:
+                status = "✓" if op.status == "SUCCESS" else "✗"
+                status_style = "green" if op.status == "SUCCESS" else "red"
+                op_type = "↑ Push" if op.operation == "push" else "↓ Pull"
+                time = relative_time(op.timestamp_start)
+
+                table.add_row(
+                    Text(status, style=status_style),
+                    op_type,
+                    op.server_id[:15],
+                    time,
+                    op.uuid[:8]
+                )
+
+            yield table
+
+    # -------------------------------------------------------------------------
+    # Actions
+    # -------------------------------------------------------------------------
+
     def action_quit(self) -> None:
-        """Quit the application."""
         self.app.exit()
 
-    def action_share(self) -> None:
-        """Open share screen."""
-        self.app.push_screen(ShareScreen(self.base_dir, self.config_dir))
+    def action_refresh(self) -> None:
+        self.refresh(recompose=True)
+        self.notify("Refreshed", timeout=1)
 
-    async def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle button presses."""
-        button_id = event.button.id
-        
-        if button_id == "btn-refresh":
-            self.action_refresh()
-        elif button_id == "btn-status":
-            await self.run_command(["status"])
-        elif button_id == "btn-push":
-            self.app.push_screen(PushScreen(self.base_dir, self.config_dir))
-        elif button_id == "btn-pull":
-            self.app.push_screen(PullScreen(self.base_dir, self.config_dir))
-        elif button_id == "btn-share":
-            self.app.push_screen(ShareScreen(self.base_dir, self.config_dir))
-        elif button_id == "btn-dryrun":
-            self.notify("Select an operation first", severity="warning")
-    
-    async def run_command(self, args: list[str]) -> None:
-        """Run sync-shuttle command and show output."""
-        script_path = Path(__file__).parent.parent / "sync-shuttle.sh"
-        
-        if not script_path.exists():
-            self.notify(f"Script not found: {script_path}", severity="error")
-            return
-        
-        try:
-            result = subprocess.run(
-                [str(script_path)] + args,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-            
-            if result.returncode == 0:
-                self.notify("Command completed successfully")
-            else:
-                self.notify(f"Command failed: {result.stderr[:100]}", severity="error")
-        except subprocess.TimeoutExpired:
-            self.notify("Command timed out", severity="error")
-        except Exception as e:
-            self.notify(f"Error: {str(e)}", severity="error")
+    def action_push(self) -> None:
+        self.app.push_screen(
+            QuickPushDialog(self.base_dir, self.config_dir),
+            self._handle_push_result
+        )
 
+    def action_pull(self) -> None:
+        servers = load_servers(self.config_dir)
+        enabled = [s for s in servers if s.enabled]
 
-class PushScreen(Screen):
-    """Push operation screen."""
-    
-    BINDINGS = [
-        Binding("escape", "pop_screen", "Back"),
-    ]
-    
-    def __init__(self, base_dir: Path, config_dir: Path, **kwargs):
-        super().__init__(**kwargs)
-        self.base_dir = base_dir
-        self.config_dir = config_dir
-        self.selected_server = None
-    
-    def compose(self) -> ComposeResult:
-        yield Header()
-        
-        with Container(id="push-container"):
-            yield Static("[bold]Push Files to Server[/bold]\n", classes="screen-title")
-            
-            with Vertical(id="push-form"):
-                yield Static("Select Server:")
-                servers = load_servers(self.config_dir)
-                yield ServerList([s for s in servers if s.enabled], id="server-select")
-                
-                yield Static("\nSource Path:")
-                yield Input(
-                    placeholder="Enter path to push (e.g., ~/myfile.txt)",
-                    id="source-input"
-                )
-                
-                with Horizontal(id="options-row"):
-                    yield Label("Dry Run:")
-                    yield Switch(value=True, id="dry-run-switch")
-                    yield Label("Force:")
-                    yield Switch(value=False, id="force-switch")
-                
-                yield Static("\nOutbox Files:", classes="section-title")
-                outbox_path = self.base_dir / "local" / "outbox"
-                if outbox_path.exists():
-                    yield FileBrowser(outbox_path, "Outbox")
-                else:
-                    yield Static("Outbox is empty")
-            
-            with Horizontal(id="push-actions"):
-                yield Button("Execute Push", id="btn-execute", variant="success")
-                yield Button("Cancel", id="btn-cancel", variant="error")
-        
-        yield Footer()
-    
-    async def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "btn-cancel":
-            self.app.pop_screen()
-        elif event.button.id == "btn-execute":
-            await self.execute_push()
-    
-    async def execute_push(self) -> None:
-        source_input = self.query_one("#source-input", Input)
-        dry_run = self.query_one("#dry-run-switch", Switch).value
-        force = self.query_one("#force-switch", Switch).value
-        
-        source = source_input.value.strip()
-        
-        if not source:
-            self.notify("Please enter a source path", severity="error")
-            return
-        
-        if not self.selected_server:
-            self.notify("Please select a server", severity="error")
-            return
-        
-        args = ["push", "--server", self.selected_server, "--source", source]
-        
-        if dry_run:
-            args.append("--dry-run")
-        if force:
-            args.append("--force")
-        
-        self.notify(f"Running: sync-shuttle {' '.join(args)}")
-        # In a real implementation, this would run the command
-        # For now, just show the command
-
-
-class PullScreen(Screen):
-    """Pull operation screen."""
-    
-    BINDINGS = [
-        Binding("escape", "pop_screen", "Back"),
-    ]
-    
-    def __init__(self, base_dir: Path, config_dir: Path, **kwargs):
-        super().__init__(**kwargs)
-        self.base_dir = base_dir
-        self.config_dir = config_dir
-        self.selected_server = None
-    
-    def compose(self) -> ComposeResult:
-        yield Header()
-        
-        with Container(id="pull-container"):
-            yield Static("[bold]Pull Files from Server[/bold]\n", classes="screen-title")
-            
-            with Vertical(id="pull-form"):
-                yield Static("Select Server:")
-                servers = load_servers(self.config_dir)
-                yield ServerList([s for s in servers if s.enabled], id="server-select")
-                
-                with Horizontal(id="options-row"):
-                    yield Label("Dry Run:")
-                    yield Switch(value=True, id="dry-run-switch")
-                    yield Label("Force:")
-                    yield Switch(value=False, id="force-switch")
-                
-                yield Static("\nInbox (files will arrive here):", classes="section-title")
-                inbox_path = self.base_dir / "local" / "inbox"
-                if inbox_path.exists() and any(inbox_path.iterdir()):
-                    yield FileBrowser(inbox_path, "Inbox")
-                else:
-                    yield Static("Inbox is empty")
-            
-            with Horizontal(id="pull-actions"):
-                yield Button("Execute Pull", id="btn-execute", variant="success")
-                yield Button("Cancel", id="btn-cancel", variant="error")
-        
-        yield Footer()
-    
-    async def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "btn-cancel":
-            self.app.pop_screen()
-        elif event.button.id == "btn-execute":
-            await self.execute_pull()
-    
-    async def execute_pull(self) -> None:
-        dry_run = self.query_one("#dry-run-switch", Switch).value
-        force = self.query_one("#force-switch", Switch).value
-        
-        if not self.selected_server:
-            self.notify("Please select a server", severity="error")
-            return
-        
-        args = ["pull", "--server", self.selected_server]
-        
-        if dry_run:
-            args.append("--dry-run")
-        if force:
-            args.append("--force")
-        
-        self.notify(f"Running: sync-shuttle {' '.join(args)}")
-
-
-class ShareScreen(Screen):
-    """Share files via outbox screen."""
-
-    BINDINGS = [
-        Binding("escape", "pop_screen", "Back"),
-    ]
-
-    def __init__(self, base_dir: Path, config_dir: Path, **kwargs):
-        super().__init__(**kwargs)
-        self.base_dir = base_dir
-        self.config_dir = config_dir
-        self.selected_server = None
-        self.share_mode = "global"  # "global" or "server"
-
-    def compose(self) -> ComposeResult:
-        yield Header()
-
-        with Container(id="share-container"):
-            yield Static("[bold]Share Files via Outbox[/bold]\n", classes="screen-title")
-            yield Static("Shared files can be pulled by remote servers.\n", classes="help-text")
-
-            with Vertical(id="share-form"):
-                yield Static("Share Mode:")
-                with Horizontal(id="mode-row"):
-                    yield Button("Global (All Servers)", id="btn-mode-global", variant="primary")
-                    yield Button("Specific Server", id="btn-mode-server", variant="default")
-
-                yield Static("\nServer (for server-specific shares):")
-                servers = load_servers(self.config_dir)
-                yield ServerList([s for s in servers if s.enabled], id="server-select")
-
-                yield Static("\nSource Path:")
-                yield Input(
-                    placeholder="Enter path to share (e.g., ~/document.pdf)",
-                    id="source-input"
-                )
-
-                yield Static("\nCurrent Shares:", classes="section-title")
-                outbox_path = self.base_dir / "local" / "outbox"
-                if outbox_path.exists():
-                    yield FileBrowser(outbox_path, "Outbox")
-                else:
-                    yield Static("No files shared yet")
-
-            with Horizontal(id="share-actions"):
-                yield Button("Share File", id="btn-execute", variant="success")
-                yield Button("List Shares", id="btn-list", variant="default")
-                yield Button("Cancel", id="btn-cancel", variant="error")
-
-        yield Footer()
-
-    async def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "btn-cancel":
-            self.app.pop_screen()
-        elif event.button.id == "btn-mode-global":
-            self.share_mode = "global"
-            self.query_one("#btn-mode-global", Button).variant = "primary"
-            self.query_one("#btn-mode-server", Button).variant = "default"
-            self.notify("Mode: Global (all servers can pull)")
-        elif event.button.id == "btn-mode-server":
-            self.share_mode = "server"
-            self.query_one("#btn-mode-global", Button).variant = "default"
-            self.query_one("#btn-mode-server", Button).variant = "primary"
-            self.notify("Mode: Server-specific (select a server)")
-        elif event.button.id == "btn-execute":
-            await self.execute_share()
-        elif event.button.id == "btn-list":
-            await self.list_shares()
-
-    async def execute_share(self) -> None:
-        source_input = self.query_one("#source-input", Input)
-        source = source_input.value.strip()
-
-        if not source:
-            self.notify("Please enter a source path", severity="error")
+        if not enabled:
+            self.notify("No servers configured", severity="warning")
             return
 
-        args = ["share", "--source", source]
-
-        if self.share_mode == "global":
-            args.append("--global")
+        # If only one server, pull from it directly
+        if len(enabled) == 1:
+            self._execute_pull(enabled[0].id)
         else:
-            if not self.selected_server:
-                self.notify("Please select a server for server-specific share", severity="error")
-                return
-            args.extend(["--server", self.selected_server])
+            # Show server selection
+            self.notify("Select a server from the Servers tab, then press 'u' to pull")
 
-        script_path = Path(__file__).parent.parent / "sync-shuttle.sh"
+    def action_share(self) -> None:
+        self.app.push_screen(
+            QuickShareDialog(self.base_dir, self.config_dir),
+            self._handle_share_result
+        )
+
+    def action_tab_servers(self) -> None:
+        tabs = self.query_one("#main-tabs", TabbedContent)
+        tabs.active = "tab-servers"
+
+    def action_tab_inbox(self) -> None:
+        tabs = self.query_one("#main-tabs", TabbedContent)
+        tabs.active = "tab-inbox"
+
+    def action_tab_outbox(self) -> None:
+        tabs = self.query_one("#main-tabs", TabbedContent)
+        tabs.active = "tab-outbox"
+
+    def action_tab_activity(self) -> None:
+        tabs = self.query_one("#main-tabs", TabbedContent)
+        tabs.active = "tab-activity"
+
+    def action_help(self) -> None:
+        self.notify(
+            "p=Push  u=Pull  s=Share  1-4=Tabs  r=Refresh  q=Quit",
+            timeout=5
+        )
+
+    # -------------------------------------------------------------------------
+    # Event Handlers
+    # -------------------------------------------------------------------------
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        btn = event.button.id
+
+        if btn == "btn-push":
+            self.action_push()
+        elif btn == "btn-pull":
+            self.action_pull()
+        elif btn == "btn-share":
+            self.action_share()
+
+    def on_server_card_selected(self, event: ServerCard.Selected) -> None:
+        self.selected_server = event.server_id
+        self.notify(f"Selected: {event.server_id}. Press 'p' to push or 'u' to pull.")
+
+    # -------------------------------------------------------------------------
+    # Command Execution
+    # -------------------------------------------------------------------------
+
+    def _handle_push_result(self, result) -> None:
+        if result is None:
+            return
+
+        server_id, source = result
+        self._execute_push(server_id, source)
+
+    def _handle_share_result(self, result) -> None:
+        if result is None:
+            return
+
+        target, source = result
+        self._execute_share(target, source)
+
+    def _execute_push(self, server_id: str, source: str) -> None:
+        script = Path(__file__).parent.parent / "sync-shuttle.sh"
+        args = ["push", "--server", server_id, "--source", source]
+
+        self.notify(f"Pushing to {server_id}...", timeout=2)
 
         try:
             result = subprocess.run(
-                [str(script_path)] + args,
+                [str(script)] + args,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+
+            if result.returncode == 0:
+                self.notify("✓ Push complete!", severity="information")
+            else:
+                self.notify(f"Push failed: {result.stderr[:80]}", severity="error")
+        except Exception as e:
+            self.notify(f"Error: {e}", severity="error")
+
+    def _execute_pull(self, server_id: str) -> None:
+        script = Path(__file__).parent.parent / "sync-shuttle.sh"
+        args = ["pull", "--server", server_id]
+
+        self.notify(f"Pulling from {server_id}...", timeout=2)
+
+        try:
+            result = subprocess.run(
+                [str(script)] + args,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+
+            if result.returncode == 0:
+                self.notify("✓ Pull complete!", severity="information")
+                self.action_refresh()
+            else:
+                self.notify(f"Pull failed: {result.stderr[:80]}", severity="error")
+        except Exception as e:
+            self.notify(f"Error: {e}", severity="error")
+
+    def _execute_share(self, target: str, source: str) -> None:
+        script = Path(__file__).parent.parent / "sync-shuttle.sh"
+
+        if target == "global":
+            args = ["share", "--global", "--source", source]
+        else:
+            args = ["share", "--server", target, "--source", source]
+
+        self.notify(f"Sharing...", timeout=2)
+
+        try:
+            result = subprocess.run(
+                [str(script)] + args,
                 capture_output=True,
                 text=True,
                 timeout=30,
             )
 
             if result.returncode == 0:
-                self.notify("File shared successfully!")
-                # Refresh the screen to show new file
-                self.refresh()
+                self.notify("✓ File shared!", severity="information")
+                self.action_refresh()
             else:
-                self.notify(f"Share failed: {result.stderr[:100]}", severity="error")
-        except subprocess.TimeoutExpired:
-            self.notify("Command timed out", severity="error")
+                self.notify(f"Share failed: {result.stderr[:80]}", severity="error")
         except Exception as e:
-            self.notify(f"Error: {str(e)}", severity="error")
-
-    async def list_shares(self) -> None:
-        script_path = Path(__file__).parent.parent / "sync-shuttle.sh"
-
-        try:
-            result = subprocess.run(
-                [str(script_path), "share", "--list"],
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-
-            self.notify(f"Shares listed (see terminal output)")
-        except Exception as e:
-            self.notify(f"Error: {str(e)}", severity="error")
-
-    def on_list_view_selected(self, event: ListView.Selected) -> None:
-        """Handle server selection."""
-        item_id = event.item.id or ""
-        if item_id.startswith("server-"):
-            self.selected_server = item_id[7:]  # Remove "server-" prefix
-            self.notify(f"Selected server: {self.selected_server}")
+            self.notify(f"Error: {e}", severity="error")
 
 
 # =============================================================================
@@ -669,121 +755,209 @@ class ShareScreen(Screen):
 # =============================================================================
 
 class SyncShuttleTUI(App):
-    """Main Sync Shuttle TUI application."""
-    
+    """Sync Shuttle - Clean, intuitive file synchronization."""
+
     CSS = """
+    /* Global */
     Screen {
         background: $surface;
     }
-    
-    #main-container {
+
+    /* Stats bar */
+    #stats-bar {
+        height: 3;
         width: 100%;
-        height: 100%;
-        padding: 1;
+        background: $primary-background;
+        padding: 0 2;
     }
-    
-    #top-row {
-        height: 40%;
-        width: 100%;
+
+    #stats-bar Horizontal {
+        align: right middle;
+        width: auto;
     }
-    
-    .panel {
-        border: solid $primary;
-        padding: 1;
+
+    .quick-stats {
+        width: 1fr;
+        padding: 1 0;
+    }
+
+    #quick-actions {
+        width: auto;
+        height: 3;
+    }
+
+    #quick-actions Button {
         margin: 0 1;
+        min-width: 10;
     }
-    
-    .panel-title {
-        color: $secondary;
+
+    /* Tabs */
+    #main-tabs {
+        height: 1fr;
+    }
+
+    TabPane {
+        padding: 1 2;
+    }
+
+    /* Section titles */
+    .section-title {
+        color: $text;
+        margin-bottom: 1;
+    }
+
+    .structure-hint {
+        color: $text-muted;
+        margin-bottom: 1;
+    }
+
+    /* Server cards */
+    .server-card {
+        width: 100%;
+        height: auto;
+        padding: 1;
+        margin-bottom: 1;
+        background: $surface;
+        border: solid $primary-darken-2;
+    }
+
+    .server-card:hover {
+        background: $primary-background;
+        border: solid $primary;
+    }
+
+    .server-card.enabled {
+        border: solid $success-darken-2;
+    }
+
+    .server-name {
         text-style: bold;
     }
-    
-    #servers-panel {
-        width: 40%;
-    }
-    
-    #status-panel {
-        width: 60%;
-    }
-    
-    #operations-panel {
-        height: 40%;
-        width: 100%;
-    }
-    
-    #actions-row {
-        height: 5;
-        width: 100%;
-        align: center middle;
-        padding: 1;
-    }
-    
-    #actions-row Button {
-        margin: 0 1;
-    }
-    
-    .screen-title {
-        text-align: center;
-        color: $secondary;
-        padding: 1;
-    }
-    
-    #push-container, #pull-container, #share-container {
-        padding: 2;
-    }
 
-    #mode-row {
-        height: 3;
-        padding: 1 0;
-    }
-
-    #mode-row Button {
-        margin-right: 1;
-    }
-
-    #share-actions {
-        height: 5;
-        align: center middle;
-        padding: 1;
-    }
-
-    .help-text {
+    .server-detail {
         color: $text-muted;
     }
-    
-    #options-row {
-        height: 3;
-        padding: 1 0;
+
+    .status-on {
+        color: $success;
     }
-    
-    #options-row Label {
+
+    .status-off {
+        color: $text-muted;
+    }
+
+    /* Empty states */
+    .empty-state {
+        width: 100%;
+        height: auto;
+        text-align: center;
+        padding: 4;
+    }
+
+    .empty-icon {
+        text-align: center;
+        text-style: bold;
+    }
+
+    .empty-title {
+        text-align: center;
+        margin-top: 1;
+    }
+
+    .empty-subtitle {
+        text-align: center;
+    }
+
+    .empty-action {
+        text-align: center;
+        color: $primary;
+    }
+
+    /* Dialogs */
+    ModalScreen {
+        align: center middle;
+    }
+
+    #dialog, #share-dialog, #push-dialog {
+        width: 60;
+        height: auto;
+        padding: 2;
+        background: $surface;
+        border: solid $primary;
+    }
+
+    .dialog-title {
+        text-align: center;
+        margin-bottom: 1;
+    }
+
+    .dialog-subtitle {
+        text-align: center;
+        color: $text-muted;
+        margin-bottom: 1;
+    }
+
+    .dialog-message {
+        margin: 1 0;
+    }
+
+    .dialog-buttons {
+        margin-top: 2;
+        align: center middle;
+        height: auto;
+    }
+
+    .dialog-buttons Button {
+        margin: 0 1;
+    }
+
+    .field-label {
+        margin-top: 1;
+        color: $text-muted;
+    }
+
+    .share-options {
+        margin-top: 1;
+        height: auto;
+    }
+
+    .share-options Button {
         margin-right: 1;
     }
-    
-    #push-actions, #pull-actions {
-        height: 5;
-        align: center middle;
-        padding: 1;
+
+    .server-button {
+        width: 100%;
+        margin: 1 0;
     }
-    
-    DataTable {
+
+    /* Activity table */
+    #activity-table {
         height: 100%;
     }
-    
-    ListView {
+
+    /* File tree */
+    Tree {
         height: auto;
         max-height: 100%;
     }
+
+    /* Scrollable areas */
+    ScrollableContainer {
+        height: 100%;
+    }
+
+    #server-list {
+        height: 100%;
+    }
     """
-    
+
     TITLE = "Sync Shuttle"
-    SUB_TITLE = "Safe File Synchronization"
-    
+
     def __init__(self, base_dir: Path, config_dir: Path):
         super().__init__()
         self.base_dir = base_dir
         self.config_dir = config_dir
-    
+
     def on_mount(self) -> None:
         self.push_screen(MainScreen(self.base_dir, self.config_dir))
 
@@ -806,18 +980,18 @@ def main():
         default=None,
         help="Configuration directory"
     )
-    
+
     args = parser.parse_args()
-    
+
     base_dir = args.base_dir.expanduser().resolve()
     config_dir = args.config_dir or (base_dir / "config")
     config_dir = config_dir.expanduser().resolve()
-    
+
     if not base_dir.exists():
         print(f"Error: Base directory does not exist: {base_dir}")
-        print("Run 'sync-shuttle.sh init' first.")
+        print("Run 'sync-shuttle init' first.")
         sys.exit(1)
-    
+
     app = SyncShuttleTUI(base_dir, config_dir)
     app.run()
 
