@@ -17,33 +17,26 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
+from typing import List
 
 try:
     from textual.app import App, ComposeResult
-    from textual.containers import Container, Horizontal, Vertical, ScrollableContainer
+    from textual.containers import Container, Horizontal, ScrollableContainer
     from textual.widgets import (
         Button,
         DataTable,
         Footer,
         Header,
         Input,
-        Label,
-        ListItem,
-        ListView,
         Static,
-        Switch,
         Tree,
         TabbedContent,
         TabPane,
-        Rule,
-        ProgressBar,
     )
     from textual.binding import Binding
     from textual.screen import Screen, ModalScreen
     from textual.message import Message
     from rich.text import Text
-    from rich.panel import Panel
 except ImportError:
     print("Error: Required packages not installed.")
     print("Run: pip install textual rich")
@@ -217,13 +210,7 @@ class ServerCard(Static):
 
 
 class FileTree(Tree):
-    """File browser with intuitive interaction."""
-
-    class FileSelected(Message):
-        """Emitted when a file is selected."""
-        def __init__(self, path: Path) -> None:
-            self.path = path
-            super().__init__()
+    """File browser for viewing inbox/outbox contents."""
 
     def __init__(self, root_path: Path, label: str = "Files", **kwargs):
         super().__init__(label, **kwargs)
@@ -235,7 +222,7 @@ class FileTree(Tree):
         self._populate_tree(self.root, self.root_path)
 
     def _populate_tree(self, node, path: Path, depth: int = 0) -> None:
-        if depth > 4 or not path.exists():
+        if depth > 3 or not path.exists():
             return
 
         try:
@@ -245,15 +232,8 @@ class FileTree(Tree):
                     continue
 
                 if item.is_dir():
-                    # Show folder with file count
-                    try:
-                        count = sum(1 for _ in item.rglob("*") if _.is_file())
-                        label = f"📁 {item.name}" + (f" ({count})" if count else "")
-                    except:
-                        label = f"📁 {item.name}"
-                    child = node.add(label, expand=False)
+                    child = node.add(f"📁 {item.name}", expand=False)
                     child.data = item
-                    # Recursively populate
                     self._populate_tree(child, item, depth + 1)
                 else:
                     size = human_size(item.stat().st_size)
@@ -262,10 +242,15 @@ class FileTree(Tree):
         except PermissionError:
             pass
 
-    def on_tree_node_selected(self, event) -> None:
-        if event.node.data and isinstance(event.node.data, Path):
-            if event.node.data.is_file():
-                self.post_message(self.FileSelected(event.node.data))
+
+def count_files(path: Path) -> int:
+    """Count files in a directory (non-recursive for speed)."""
+    if not path.exists():
+        return 0
+    try:
+        return sum(1 for p in path.iterdir() if p.is_file() or p.is_dir())
+    except:
+        return 0
 
 
 class QuickStats(Static):
@@ -279,12 +264,11 @@ class QuickStats(Static):
         inbox = self.base_dir / "local" / "inbox"
         outbox = self.base_dir / "local" / "outbox"
 
-        inbox_count = sum(1 for _ in inbox.rglob("*") if _.is_file()) if inbox.exists() else 0
-        outbox_count = sum(1 for _ in outbox.rglob("*") if _.is_file()) if outbox.exists() else 0
+        inbox_count = count_files(inbox)
+        outbox_count = count_files(outbox)
 
         yield Static(
-            f"[bold]📥 Inbox[/bold] {inbox_count} files   "
-            f"[bold]📤 Outbox[/bold] {outbox_count} files",
+            f"📥 Inbox: {inbox_count}   📤 Outbox: {outbox_count}",
             classes="quick-stats"
         )
 
@@ -309,29 +293,8 @@ class EmptyState(Static):
 
 
 # =============================================================================
-# MODAL DIALOGS - Clean, focused interactions
+# MODAL DIALOGS
 # =============================================================================
-
-class ConfirmDialog(ModalScreen):
-    """Simple confirmation dialog."""
-
-    def __init__(self, title: str, message: str, confirm_label: str = "Confirm"):
-        super().__init__()
-        self.title_text = title
-        self.message = message
-        self.confirm_label = confirm_label
-
-    def compose(self) -> ComposeResult:
-        with Container(id="dialog"):
-            yield Static(f"[bold]{self.title_text}[/bold]", classes="dialog-title")
-            yield Static(self.message, classes="dialog-message")
-            with Horizontal(classes="dialog-buttons"):
-                yield Button("Cancel", id="cancel", variant="default")
-                yield Button(self.confirm_label, id="confirm", variant="primary")
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        self.dismiss(event.button.id == "confirm")
-
 
 class QuickShareDialog(ModalScreen):
     """Quick share dialog - simple and focused."""
@@ -437,8 +400,45 @@ class QuickPushDialog(ModalScreen):
             self.dismiss((server_id, source))
 
 
+class QuickPullDialog(ModalScreen):
+    """Quick pull dialog - select server to pull from."""
+
+    def __init__(self, config_dir: Path):
+        super().__init__()
+        self.config_dir = config_dir
+
+    def compose(self) -> ComposeResult:
+        servers = load_servers(self.config_dir)
+        enabled_servers = [s for s in servers if s.enabled]
+
+        with Container(id="pull-dialog"):
+            yield Static("[bold]Pull Files[/bold]", classes="dialog-title")
+            yield Static("Download files from a server's outbox.", classes="dialog-subtitle")
+
+            yield Static("\nSelect server:", classes="field-label")
+            if enabled_servers:
+                for server in enabled_servers:
+                    yield Button(
+                        f"📡 {server.name} ({server.host})",
+                        id=f"pull-{server.id}",
+                        classes="server-button"
+                    )
+            else:
+                yield Static("[dim]No servers configured[/dim]")
+
+            with Horizontal(classes="dialog-buttons"):
+                yield Button("Cancel", id="cancel")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "cancel":
+            self.dismiss(None)
+        elif event.button.id.startswith("pull-"):
+            server_id = event.button.id[5:]  # Remove "pull-" prefix
+            self.dismiss(server_id)
+
+
 # =============================================================================
-# MAIN SCREEN - Dashboard with tabs
+# MAIN SCREEN
 # =============================================================================
 
 class MainScreen(Screen):
@@ -448,7 +448,7 @@ class MainScreen(Screen):
         Binding("q", "quit", "Quit"),
         Binding("r", "refresh", "Refresh"),
         Binding("p", "push", "Push"),
-        Binding("u", "pull", "Pull"),  # 'u' for upload/pull
+        Binding("l", "pull", "Pull"),
         Binding("s", "share", "Share"),
         Binding("1", "tab_servers", "Servers"),
         Binding("2", "tab_inbox", "Inbox"),
@@ -462,7 +462,6 @@ class MainScreen(Screen):
         self.base_dir = base_dir
         self.config_dir = config_dir
         self.logs_dir = base_dir / "logs"
-        self.selected_server: Optional[str] = None
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -523,7 +522,7 @@ class MainScreen(Screen):
                 icon="📥",
                 title="Inbox Empty",
                 subtitle="Files you pull from servers appear here",
-                action="Press [bold]u[/bold] to pull from a server"
+                action="Press [bold]l[/bold] to pull from a server"
             )
 
     def _compose_outbox_tab(self) -> ComposeResult:
@@ -602,19 +601,10 @@ class MainScreen(Screen):
         )
 
     def action_pull(self) -> None:
-        servers = load_servers(self.config_dir)
-        enabled = [s for s in servers if s.enabled]
-
-        if not enabled:
-            self.notify("No servers configured", severity="warning")
-            return
-
-        # If only one server, pull from it directly
-        if len(enabled) == 1:
-            self._execute_pull(enabled[0].id)
-        else:
-            # Show server selection
-            self.notify("Select a server from the Servers tab, then press 'u' to pull")
+        self.app.push_screen(
+            QuickPullDialog(self.config_dir),
+            self._handle_pull_result
+        )
 
     def action_share(self) -> None:
         self.app.push_screen(
@@ -640,7 +630,7 @@ class MainScreen(Screen):
 
     def action_help(self) -> None:
         self.notify(
-            "p=Push  u=Pull  s=Share  1-4=Tabs  r=Refresh  q=Quit",
+            "p=Push  l=Pull  s=Share  1-4=Tabs  r=Refresh  q=Quit",
             timeout=5
         )
 
@@ -658,10 +648,6 @@ class MainScreen(Screen):
         elif btn == "btn-share":
             self.action_share()
 
-    def on_server_card_selected(self, event: ServerCard.Selected) -> None:
-        self.selected_server = event.server_id
-        self.notify(f"Selected: {event.server_id}. Press 'p' to push or 'u' to pull.")
-
     # -------------------------------------------------------------------------
     # Command Execution
     # -------------------------------------------------------------------------
@@ -672,6 +658,12 @@ class MainScreen(Screen):
 
         server_id, source = result
         self._execute_push(server_id, source)
+
+    def _handle_pull_result(self, result) -> None:
+        if result is None:
+            return
+
+        self._execute_pull(result)
 
     def _handle_share_result(self, result) -> None:
         if result is None:
@@ -878,7 +870,7 @@ class SyncShuttleTUI(App):
         align: center middle;
     }
 
-    #dialog, #share-dialog, #push-dialog {
+    #dialog, #share-dialog, #push-dialog, #pull-dialog {
         width: 60;
         height: auto;
         padding: 2;
