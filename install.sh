@@ -209,6 +209,16 @@ print_completion() {
     echo ""
     echo -e "${BOLD}Documentation:${RESET} ${INSTALL_DIR}/README.md"
     echo ""
+
+    # Warn if not on main branch
+    if [[ "$BRANCH" != "main" ]]; then
+        echo -e "${YELLOW}════════════════════════════════════════════════════════════${RESET}"
+        echo -e "${YELLOW}${BOLD}WARNING: You installed from branch '${BRANCH}'${RESET}"
+        echo -e "${YELLOW}This is not the stable main branch. For production use:${RESET}"
+        echo -e "${YELLOW}  curl -fsSL .../main/install.sh | bash${RESET}"
+        echo -e "${YELLOW}════════════════════════════════════════════════════════════${RESET}"
+        echo ""
+    fi
 }
 
 #===============================================================================

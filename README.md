@@ -10,6 +10,16 @@ curl -fsSL https://raw.githubusercontent.com/kaurifund/bucketcast/main/install.s
 
 That's it. This installs to `~/.local/share/sync-shuttle/`, adds it to your PATH, and sets up everything including the TUI.
 
+### Install from a branch
+
+To test a feature branch before it's merged:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kaurifund/bucketcast/BRANCH_NAME/install.sh | bash
+```
+
+Replace `BRANCH_NAME` with the branch (e.g., `feature/outbox-inbox-symmetry`).
+
 ---
 
 Sync Shuttle is a command-line tool for safely transferring files between your home computer and remote servers. It prioritizes safety and auditability over speed, ensuring files are never accidentally deleted or overwritten.
