@@ -44,6 +44,126 @@ except ImportError:
 
 
 # =============================================================================
+# HELP TEXT
+# =============================================================================
+
+HELP_TEXT = """
+[bold cyan]═══════════════════════════════════════════════════════════════════════════════[/bold cyan]
+[bold cyan]                           SYNC SHUTTLE - HELP                                  [/bold cyan]
+[bold cyan]═══════════════════════════════════════════════════════════════════════════════[/bold cyan]
+
+[bold yellow]KEYBOARD SHORTCUTS[/bold yellow]
+────────────────────────────────────────────────────────────────────────────────
+  [bold]p[/bold]         Push a file to a server's inbox
+  [bold]l[/bold]         Pull files from a server's outbox
+  [bold]s[/bold]         Share a file (add to your outbox)
+  [bold]r[/bold]         Refresh the current view
+  [bold]1-5[/bold]       Switch tabs (Servers, Inbox, Outbox, Activity, Help)
+  [bold]?[/bold]         Show quick help notification
+  [bold]q[/bold]         Quit the application
+
+[bold yellow]TABS OVERVIEW[/bold yellow]
+────────────────────────────────────────────────────────────────────────────────
+  [bold]Servers[/bold]   View and manage configured remote servers
+  [bold]Inbox[/bold]     Files received FROM other servers (organized by sender)
+  [bold]Outbox[/bold]    Files shared FOR other servers to pull
+  [bold]Activity[/bold]  Recent sync operations and logs
+  [bold]Help[/bold]      This help screen
+
+[bold yellow]DIRECTORY STRUCTURE[/bold yellow]
+────────────────────────────────────────────────────────────────────────────────
+  ~/.sync-shuttle/
+  ├── config/
+  │   ├── sync-shuttle.conf     Main configuration
+  │   └── servers.toml          Server definitions
+  ├── local/
+  │   ├── inbox/<server>/       Files received from each server
+  │   └── outbox/
+  │       ├── global/           Shared with ALL servers
+  │       └── <server>/         Shared with specific server
+  └── logs/
+      ├── sync.log              Human-readable log
+      └── sync.jsonl            Machine-readable JSON log
+
+[bold yellow]CLI COMMANDS[/bold yellow]
+────────────────────────────────────────────────────────────────────────────────
+  [bold]sync-shuttle init[/bold]
+      Initialize directory structure (run once)
+
+  [bold]sync-shuttle push -s <server> -S <file>[/bold]
+      Push a file to a server's inbox
+      Add --dry-run to preview without executing
+      Add --force to allow overwrites
+
+  [bold]sync-shuttle pull -s <server>[/bold]
+      Pull files from a server's outbox (global + your hostname)
+      Add --dry-run to preview
+
+  [bold]sync-shuttle share --global -S <file>[/bold]
+      Share a file with ALL servers (goes to outbox/global/)
+
+  [bold]sync-shuttle share -s <server> -S <file>[/bold]
+      Share a file with a SPECIFIC server (goes to outbox/<server>/)
+
+  [bold]sync-shuttle share --list[/bold]
+      List all currently shared files
+
+  [bold]sync-shuttle share --remove --global -S <file>[/bold]
+      Remove a file from global share
+
+  [bold]sync-shuttle list servers[/bold]
+      List all configured servers
+
+  [bold]sync-shuttle list files -s <server>[/bold]
+      List files synced with a server
+
+  [bold]sync-shuttle status[/bold]
+      Show sync status and recent operations
+
+  [bold]sync-shuttle tui[/bold]
+      Launch this interactive interface
+
+[bold yellow]WORKFLOW EXAMPLES[/bold yellow]
+────────────────────────────────────────────────────────────────────────────────
+  [bold]Send a file to a colleague:[/bold]
+    sync-shuttle push -s their-server -S ~/document.pdf
+
+  [bold]Receive files from a colleague:[/bold]
+    sync-shuttle pull -s their-server
+    ls ~/.sync-shuttle/local/inbox/their-server/
+
+  [bold]Share a file for anyone to pull:[/bold]
+    sync-shuttle share --global -S ~/shared-notes.txt
+
+  [bold]Check what you're sharing:[/bold]
+    sync-shuttle share --list
+
+[bold yellow]SAFETY FEATURES[/bold yellow]
+────────────────────────────────────────────────────────────────────────────────
+  • All files stay in ~/.sync-shuttle/ (sandboxed)
+  • Files are NEVER deleted by sync-shuttle
+  • Existing files are NEVER overwritten without --force
+  • Use --dry-run to preview any operation
+  • All operations are logged
+
+[bold yellow]CONFIGURATION[/bold yellow]
+────────────────────────────────────────────────────────────────────────────────
+  Edit servers: ~/.sync-shuttle/config/servers.toml
+
+  Example server entry:
+    [servers.myserver]
+    name = "My Server"
+    host = "192.168.1.100"
+    port = 22
+    user = "myuser"
+    remote_base = "/home/myuser/.sync-shuttle"
+    enabled = true
+
+[bold cyan]═══════════════════════════════════════════════════════════════════════════════[/bold cyan]
+"""
+
+
+# =============================================================================
 # DATA MODELS
 # =============================================================================
 
@@ -115,7 +235,7 @@ def load_servers(config_dir: Path) -> List[ServerConfig]:
 
 
 def load_operations(logs_dir: Path, limit: int = 20) -> List[SyncOperation]:
-    """Load recent sync operations."""
+    """Load recent sync operations from JSON log."""
     log_file = logs_dir / "sync.jsonl"
     operations = []
 
@@ -145,6 +265,20 @@ def load_operations(logs_dir: Path, limit: int = 20) -> List[SyncOperation]:
             continue
 
     return operations
+
+
+def load_log_lines(logs_dir: Path, limit: int = 50) -> List[str]:
+    """Load recent lines from human-readable log."""
+    log_file = logs_dir / "sync.log"
+
+    if not log_file.exists():
+        return []
+
+    try:
+        lines = log_file.read_text().strip().split("\n")
+        return lines[-limit:]
+    except:
+        return []
 
 
 def human_size(size: int) -> str:
@@ -642,7 +776,8 @@ class SyncShuttleTUI(App):
         Binding("2", "tab_inbox", "Inbox"),
         Binding("3", "tab_outbox", "Outbox"),
         Binding("4", "tab_activity", "Activity"),
-        Binding("?", "help", "Help"),
+        Binding("5", "tab_help", "Help"),
+        Binding("?", "show_help", "Help"),
     ]
 
     def __init__(self, base_dir: Path, config_dir: Path):
@@ -717,9 +852,9 @@ class SyncShuttleTUI(App):
                     )
 
             with TabPane("Activity", id="tab-activity"):
-                operations = load_operations(self.logs_dir)
                 yield Static("[bold]📊 Recent Activity[/bold]\n", classes="section-title")
-                if not operations:
+                log_lines = load_log_lines(self.logs_dir, limit=30)
+                if not log_lines:
                     yield EmptyState(
                         icon="📊",
                         title="No Activity Yet",
@@ -727,21 +862,21 @@ class SyncShuttleTUI(App):
                         action=""
                     )
                 else:
-                    table = DataTable(id="activity-table")
-                    table.add_columns("Status", "Type", "Server", "Time", "Details")
-                    for op in operations[:15]:
-                        status = "✓" if op.status == "SUCCESS" else "✗"
-                        status_style = "green" if op.status == "SUCCESS" else "red"
-                        op_type = "↑ Push" if op.operation == "push" else "↓ Pull"
-                        time = relative_time(op.timestamp_start)
-                        table.add_row(
-                            Text(status, style=status_style),
-                            op_type,
-                            op.server_id[:15],
-                            time,
-                            op.uuid[:8]
-                        )
-                    yield table
+                    # Show recent log entries
+                    for line in log_lines:
+                        if "[ERROR]" in line:
+                            yield Static(f"[red]{line}[/red]")
+                        elif "[SUCCESS]" in line:
+                            yield Static(f"[green]{line}[/green]")
+                        elif "[WARN]" in line:
+                            yield Static(f"[yellow]{line}[/yellow]")
+                        elif "[INFO]" in line:
+                            yield Static(f"[blue]{line}[/blue]")
+                        else:
+                            yield Static(f"[dim]{line}[/dim]")
+
+            with TabPane("Help", id="tab-help"):
+                yield Static(HELP_TEXT)
 
         yield Footer()
 
@@ -786,9 +921,13 @@ class SyncShuttleTUI(App):
         tabs = self.query_one("#main-tabs", TabbedContent)
         tabs.active = "tab-activity"
 
-    def action_help(self) -> None:
+    def action_tab_help(self) -> None:
+        tabs = self.query_one("#main-tabs", TabbedContent)
+        tabs.active = "tab-help"
+
+    def action_show_help(self) -> None:
         self.notify(
-            "p=Push  l=Pull  s=Share  1-4=Tabs  r=Refresh  q=Quit",
+            "p=Push  l=Pull  s=Share  1-5=Tabs  r=Refresh  q=Quit",
             timeout=5
         )
 
