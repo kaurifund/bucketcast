@@ -30,6 +30,12 @@ readonly OPTIONAL_TOOLS=(
     "tree"
 )
 
+# Reserved namespaces that cannot be used as server IDs
+# These are used for special directory structures (e.g., outbox/global/)
+readonly RESERVED_NAMESPACES=(
+    "global"
+)
+
 #===============================================================================
 # VALIDATE: Environment and dependencies
 #===============================================================================
@@ -195,7 +201,15 @@ validate_remote_base() {
 #===============================================================================
 validate_server_id() {
     local server_id="$1"
-    
+
+    # Check reserved namespaces
+    for reserved in "${RESERVED_NAMESPACES[@]}"; do
+        if [[ "$server_id" == "$reserved" ]]; then
+            log_error "Server ID '$server_id' is reserved and cannot be used"
+            return 1
+        fi
+    done
+
     # Check length (3-32 characters)
     if [[ ${#server_id} -lt 3 || ${#server_id} -gt 32 ]]; then
         log_error "Server ID must be 3-32 characters: $server_id"
