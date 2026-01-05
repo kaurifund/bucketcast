@@ -477,16 +477,16 @@ class MainScreen(Screen):
         # Main tabbed content
         with TabbedContent(id="main-tabs"):
             with TabPane("Servers", id="tab-servers"):
-                yield self._compose_servers_tab()
+                yield from self._compose_servers_tab()
 
             with TabPane("Inbox", id="tab-inbox"):
-                yield self._compose_inbox_tab()
+                yield from self._compose_inbox_tab()
 
             with TabPane("Outbox", id="tab-outbox"):
-                yield self._compose_outbox_tab()
+                yield from self._compose_outbox_tab()
 
             with TabPane("Activity", id="tab-activity"):
-                yield self._compose_activity_tab()
+                yield from self._compose_activity_tab()
 
         yield Footer()
 
