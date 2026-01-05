@@ -215,7 +215,7 @@ print_completion() {
         echo -e "${YELLOW}════════════════════════════════════════════════════════════${RESET}"
         echo -e "${YELLOW}${BOLD}WARNING: You installed from branch '${BRANCH}'${RESET}"
         echo -e "${YELLOW}This is not the stable main branch. For production use:${RESET}"
-        echo -e "${YELLOW}  curl -fsSL .../main/install.sh | bash${RESET}"
+        echo -e "${YELLOW}  curl -fsSL https://raw.githubusercontent.com/kaurifund/bucketcast/main/install.sh | bash${RESET}"
         echo -e "${YELLOW}════════════════════════════════════════════════════════════${RESET}"
         echo ""
     fi
