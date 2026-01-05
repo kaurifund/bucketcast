@@ -16,6 +16,9 @@
 | 2026-01-05 | 1 | Verification: syntax check passed | ✅ |
 | 2026-01-05 | 1 | Verification: exit code 23 handling for missing dirs | ✅ |
 | 2026-01-05 | 1 | Verification: e2e with remote server | ⏸️ Pending integration test |
+| 2026-01-05 | 2 | Reviewed directory initialization | No changes needed |
+| 2026-01-05 | 2 | Verification: OUTBOX_DIR created in init | ✅ (line 766) |
+| 2026-01-05 | 2 | Verification: subdirs created on-demand | ✅ (by design) |
 
 ---
 
@@ -23,7 +26,7 @@
 
 - [x] Task 0: Add reserved namespace validation ("global")
 - [x] Task 1: Update pull to check global/ and per-server outbox
-- [ ] Task 2: Update directory initialization
+- [x] Task 2: Update directory initialization
 - [ ] Task 3: Auto-populate local outbox on push (optional)
 - [ ] Task 4: Update documentation
 - [ ] Task 5: Update tests
