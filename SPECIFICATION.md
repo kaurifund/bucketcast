@@ -37,7 +37,7 @@ safety over convenience, ensuring files are never accidentally deleted or overwr
 ### 2. Sandboxed Operations
 - All files stored in `~/.sync-shuttle/`
 - Structure: `~/.sync-shuttle/remote/<server_id>/files/`
-- Local staging: `~/.sync-shuttle/local/outbox/`
+- Local shares: `~/.sync-shuttle/local/outbox/` (global/ or <server_id>/)
 - Incoming files: `~/.sync-shuttle/local/inbox/`
 
 ### 3. Comprehensive Logging
@@ -79,7 +79,10 @@ safety over convenience, ensuring files are never accidentally deleted or overwr
 │       └── files/             # Files synced from this server
 ├── local/
 │   ├── inbox/                 # Files received from remotes
-│   └── outbox/                # Files staged for sending
+│   │   └── <server_id>/       # Per-server incoming files
+│   └── outbox/                # Files shared with remotes
+│       ├── global/            # Available to all servers
+│       └── <server_id>/       # Server-specific shares
 ├── logs/
 │   ├── sync.log               # Human-readable log
 │   └── sync.jsonl             # Machine-readable log (JSON Lines)
@@ -167,7 +170,7 @@ LogEntry {
 1. List configured servers → Read `servers.toml`
 2. View sync history → Read `logs/sync.jsonl`
 3. Browse remote files → List `remote/<server_id>/files/`
-4. Check pending outbox → List `local/outbox/`
+4. Check shared files → List `local/outbox/global/` or `local/outbox/<server_id>/`
 
 ### Write Patterns
 1. Add server → Append to `servers.toml`
