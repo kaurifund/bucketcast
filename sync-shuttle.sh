@@ -317,7 +317,7 @@ set -o pipefail  # Exit on pipe failure
 # SCRIPT METADATA
 #===============================================================================
 readonly SCRIPT_NAME="sync-shuttle"
-readonly SCRIPT_VERSION="1.1.1"
+readonly SCRIPT_VERSION="1.2.0"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 #===============================================================================
@@ -667,6 +667,37 @@ for server_id, props_str in matches:
     return 1
 }
 
+# Migration: 1.1.x to 1.2.0 (outbox/ files → outbox/global/)
+migrate_outbox_to_global() {
+    local outbox_dir="${LOCAL_DIR}/outbox"
+    local global_dir="${outbox_dir}/global"
+
+    # Skip if outbox doesn't exist
+    [[ ! -d "$outbox_dir" ]] && return 0
+
+    # Find files at root level (not in subdirs)
+    local root_files
+    root_files=$(find "$outbox_dir" -maxdepth 1 -type f 2>/dev/null)
+
+    if [[ -n "$root_files" ]]; then
+        echo -e "${YELLOW}[MIGRATE]${RESET} Moving outbox files to outbox/global/..."
+        mkdir -p "$global_dir"
+
+        # Move files to global/
+        local count=0
+        while IFS= read -r file; do
+            if [[ -f "$file" ]]; then
+                mv "$file" "$global_dir/"
+                ((count++)) || true
+            fi
+        done <<< "$root_files"
+
+        echo -e "${GREEN}[MIGRATE]${RESET} Moved $count file(s) to outbox/global/"
+    fi
+
+    return 0
+}
+
 # Run all necessary migrations based on version
 check_and_run_migrations() {
     # Skip if sync-shuttle directory doesn't exist (fresh install)
@@ -681,6 +712,10 @@ check_and_run_migrations() {
     # Run migrations in order
     if version_lt "$installed_version" "1.0.0"; then
         migrate_to_1_0_0 || true
+    fi
+
+    if version_lt "$installed_version" "1.2.0"; then
+        migrate_outbox_to_global || true
     fi
 
     # Future migrations go here:

@@ -32,6 +32,10 @@
 | 2026-01-05 | 6 | Verification: share --global file works | ✅ |
 | 2026-01-05 | 6 | Verification: share --list works | ✅ |
 | 2026-01-05 | 6 | Verification: share --remove works | ✅ |
+| 2026-01-05 | 7 | Added migrate_outbox_to_global() | sync-shuttle.sh:670-699 |
+| 2026-01-05 | 7 | Added migration call for < 1.2.0 | sync-shuttle.sh:717-719 |
+| 2026-01-05 | 7 | Bumped version to 1.2.0 | sync-shuttle.sh:320 |
+| 2026-01-05 | 7 | Verification: files moved to global/ | ✅ |
 
 ---
 
@@ -44,4 +48,4 @@
 - [x] Task 4: Update documentation
 - [x] Task 5: Update tests
 - [x] Task 6: Add share command
-- [ ] Task 7: Migrate existing outbox/ files to outbox/global/
+- [x] Task 7: Migrate existing outbox/ files to outbox/global/
