@@ -38,6 +38,7 @@
 | 2026-01-05 | 7 | Verification: files moved to global/ | ✅ |
 | 2026-01-05 | - | Audit: verified installer triggers migrations | ✅ |
 | 2026-01-05 | - | Audit: added share command to README.md | Fixed |
+| 2026-01-05 | - | Audit: added share command to --help output | Fixed |
 
 ---
 

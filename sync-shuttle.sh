@@ -426,6 +426,7 @@ ${BOLD}COMMANDS:${RESET}
     init                    Initialize sync-shuttle directory structure
     push                    Push files TO a remote server
     pull                    Pull files FROM a remote server
+    share                   Share files via outbox (for others to pull)
     list <servers|files>    List servers or files in a server's directory
     status                  Show sync status and recent operations
     config <subcommand>     Manage server configuration
@@ -445,6 +446,9 @@ ${BOLD}OPTIONS:${RESET}
     -v, --verbose           Verbose output
     -q, --quiet             Minimal output
     --s3-archive            Archive to S3 after successful sync
+    --global                Share with all servers (share command)
+    --list                  List shared files (share command)
+    --remove                Remove from share (share command)
     -h, --help              Show this help message
     -V, --version           Show version
 
@@ -462,6 +466,15 @@ ${BOLD}EXAMPLES:${RESET}
     # Pull from a server
     $SCRIPT_NAME pull -s myserver --dry-run
     $SCRIPT_NAME pull -s myserver
+
+    # Share a file globally (all servers can pull)
+    $SCRIPT_NAME share --global -S ~/shared-doc.pdf
+
+    # Share with a specific server
+    $SCRIPT_NAME share -s myserver -S ~/for-them.txt
+
+    # List shared files
+    $SCRIPT_NAME share --list
 
 ${BOLD}SAFETY:${RESET}
     • All operations are sandboxed to ~/.sync-shuttle/
