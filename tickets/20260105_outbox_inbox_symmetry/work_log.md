@@ -27,6 +27,11 @@
 | 2026-01-05 | 5 | Added server ID validation tests | test_validation.sh:253-296 |
 | 2026-01-05 | 5 | Verification: syntax check passed | ✅ |
 | 2026-01-05 | 5 | Note: share command tests deferred to Task 6 | - |
+| 2026-01-05 | 6 | Implemented action_share() | sync-shuttle.sh:1082-1213 |
+| 2026-01-05 | 6 | Added --global, --list, --remove flags | sync-shuttle.sh:558-569 |
+| 2026-01-05 | 6 | Verification: share --global file works | ✅ |
+| 2026-01-05 | 6 | Verification: share --list works | ✅ |
+| 2026-01-05 | 6 | Verification: share --remove works | ✅ |
 
 ---
 
@@ -38,5 +43,5 @@
 - [x] Task 3: Auto-populate local outbox on push (optional)
 - [x] Task 4: Update documentation
 - [x] Task 5: Update tests
-- [ ] Task 6: Add share command
+- [x] Task 6: Add share command
 - [ ] Task 7: Migrate existing outbox/ files to outbox/global/

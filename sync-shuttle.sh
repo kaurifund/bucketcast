@@ -344,6 +344,9 @@ FORCE="false"
 VERBOSE="false"
 QUIET="false"
 S3_ARCHIVE="false"
+GLOBAL_MODE="false"
+LIST_MODE="false"
+REMOVE_MODE="false"
 OPERATION_UUID=""
 CONFIG_ARGS=()
 
@@ -485,7 +488,7 @@ parse_arguments() {
 
     # First argument should be the command
     case "${1:-}" in
-        init|push|pull|list|status|config|tui|help|--help|-h)
+        init|push|pull|list|status|config|share|tui|help|--help|-h)
             ACTION="${1}"
             shift
             ;;
@@ -553,6 +556,18 @@ parse_arguments() {
                 ;;
             --s3-archive)
                 S3_ARCHIVE="true"
+                shift
+                ;;
+            --global)
+                GLOBAL_MODE="true"
+                shift
+                ;;
+            --list)
+                LIST_MODE="true"
+                shift
+                ;;
+            --remove)
+                REMOVE_MODE="true"
                 shift
                 ;;
             servers|files)
@@ -733,6 +748,9 @@ dispatch_action() {
             ;;
         config)
             action_config
+            ;;
+        share)
+            action_share
             ;;
         tui)
             action_tui
@@ -1058,6 +1076,141 @@ action_pull() {
         "$timestamp_start" "$timestamp_end" "SUCCESS"
     
     log_success "Pull operation completed [${OPERATION_UUID}]"
+}
+
+#===============================================================================
+# ACTION: SHARE
+# Manage files in the outbox for sharing with remote servers
+#===============================================================================
+action_share() {
+    local share_dir
+
+    # Handle --list without server/global (list all)
+    if [[ "${LIST_MODE:-false}" == "true" && -z "$SERVER_ID" && "${GLOBAL_MODE:-false}" != "true" ]]; then
+        echo ""
+        echo "${BOLD}All shared files${RESET}"
+        echo "─────────────────────────────────────────────────────────"
+
+        if [[ -d "$OUTBOX_DIR" ]]; then
+            local count=0
+            while IFS= read -r -d '' file; do
+                local rel_path="${file#$OUTBOX_DIR/}"
+                echo "  $rel_path"
+                ((count++)) || true
+            done < <(find "$OUTBOX_DIR" -type f -print0 2>/dev/null)
+
+            if [[ $count -eq 0 ]]; then
+                echo "  (no files)"
+            fi
+            echo ""
+            echo "Total: $count file(s)"
+        else
+            echo "  (no files)"
+        fi
+        return 0
+    fi
+
+    # Determine target directory
+    if [[ -n "$SERVER_ID" ]]; then
+        # Server-specific share
+        share_dir="${OUTBOX_DIR}/${SERVER_ID}"
+    elif [[ "${GLOBAL_MODE:-false}" == "true" ]]; then
+        # Global share (available to all servers)
+        share_dir="${OUTBOX_DIR}/global"
+    else
+        log_error "Must specify -s <server> or --global"
+        echo "Usage:"
+        echo "  $SCRIPT_NAME share -s <server> <file>      # Share with specific server"
+        echo "  $SCRIPT_NAME share --global <file>         # Share with all servers"
+        echo "  $SCRIPT_NAME share --list                  # List all shared files"
+        echo "  $SCRIPT_NAME share -s <server> --list      # List server-specific shares"
+        echo "  $SCRIPT_NAME share --global --list         # List global shares"
+        echo "  $SCRIPT_NAME share -s <server> --remove <file>  # Remove from share"
+        exit 2
+    fi
+
+    # List mode
+    if [[ "${LIST_MODE:-false}" == "true" ]]; then
+        echo ""
+        if [[ -n "$SERVER_ID" ]]; then
+            echo "${BOLD}Shared with: ${SERVER_ID}${RESET}"
+        elif [[ "${GLOBAL_MODE:-false}" == "true" ]]; then
+            echo "${BOLD}Global shares (all servers)${RESET}"
+        else
+            # List all shares
+            echo "${BOLD}All shared files${RESET}"
+            share_dir="${OUTBOX_DIR}"
+        fi
+        echo "─────────────────────────────────────────────────────────"
+
+        if [[ -d "$share_dir" ]]; then
+            local count=0
+            while IFS= read -r -d '' file; do
+                local rel_path="${file#$OUTBOX_DIR/}"
+                echo "  $rel_path"
+                ((count++)) || true
+            done < <(find "$share_dir" -type f -print0 2>/dev/null)
+
+            if [[ $count -eq 0 ]]; then
+                echo "  (no files)"
+            fi
+            echo ""
+            echo "Total: $count file(s)"
+        else
+            echo "  (no files)"
+        fi
+        return 0
+    fi
+
+    # Remove mode
+    if [[ "${REMOVE_MODE:-false}" == "true" ]]; then
+        if [[ -z "$SOURCE_PATH" ]]; then
+            log_error "File to remove is required"
+            echo "Usage: $SCRIPT_NAME share -s <server> --remove <file>"
+            exit 2
+        fi
+
+        local file_to_remove="${share_dir}/$(basename "$SOURCE_PATH")"
+        if [[ -f "$file_to_remove" ]]; then
+            rm -f "$file_to_remove"
+            log_info "Removed: ${file_to_remove#$OUTBOX_DIR/}"
+        else
+            log_warn "File not found: ${file_to_remove#$OUTBOX_DIR/}"
+        fi
+        return 0
+    fi
+
+    # Add mode (default)
+    if [[ -z "$SOURCE_PATH" ]]; then
+        log_error "Source file/directory is required"
+        echo "Usage: $SCRIPT_NAME share -s <server> <file>"
+        exit 2
+    fi
+
+    # Validate source exists
+    if [[ ! -e "$SOURCE_PATH" ]]; then
+        log_error "Source does not exist: $SOURCE_PATH"
+        exit 5
+    fi
+
+    # Create share directory
+    mkdir -p "$share_dir"
+
+    # Copy file to share directory
+    if cp -r "$SOURCE_PATH" "$share_dir/"; then
+        local dest_name
+        dest_name=$(basename "$SOURCE_PATH")
+        log_success "Shared: ${share_dir#$OUTBOX_DIR/}/${dest_name}"
+
+        if [[ -n "$SERVER_ID" ]]; then
+            log_info "Server '$SERVER_ID' can pull this file"
+        else
+            log_info "All servers can pull this file"
+        fi
+    else
+        log_error "Failed to copy file to share directory"
+        exit 1
+    fi
 }
 
 #===============================================================================
