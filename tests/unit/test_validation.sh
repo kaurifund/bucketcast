@@ -237,14 +237,59 @@ test_validate_transfer_size_accepts_small_files() {
 test_validate_transfer_size_parses_size_limits() {
     # Test that various size formats are understood
     local sizes=("1K" "1M" "1G" "100M" "10G")
-    
+
     for size in "${sizes[@]}"; do
         export MAX_TRANSFER_SIZE="$size"
         local test_file="${TEST_DIR}/tiny.txt"
         echo "x" > "$test_file"
-        
+
         if ! validate_transfer_size "$test_file"; then
             echo "Should accept file with MAX_TRANSFER_SIZE=$size"
+            return 1
+        fi
+    done
+}
+
+#===============================================================================
+# SERVER ID VALIDATION TESTS
+#===============================================================================
+
+test_validate_server_id_rejects_reserved_namespace_global() {
+    # "global" is reserved for outbox/global/ directory
+    if validate_server_id "global" 2>/dev/null; then
+        echo "Should reject reserved namespace: global"
+        return 1
+    fi
+}
+
+test_validate_server_id_accepts_valid_server_ids() {
+    local valid_ids=(
+        "my-server"
+        "prod01"
+        "dev-web-01"
+        "test123"
+    )
+
+    for id in "${valid_ids[@]}"; do
+        if ! validate_server_id "$id" 2>/dev/null; then
+            echo "Should accept valid server ID: $id"
+            return 1
+        fi
+    done
+}
+
+test_validate_server_id_rejects_invalid_format() {
+    local invalid_ids=(
+        "ab"                    # Too short
+        "UPPERCASE"             # Must be lowercase
+        "has_underscore"        # No underscores
+        "has--double-dash"      # No consecutive dashes
+        "-starts-with-dash"     # Cannot start with dash
+    )
+
+    for id in "${invalid_ids[@]}"; do
+        if validate_server_id "$id" 2>/dev/null; then
+            echo "Should reject invalid server ID: $id"
             return 1
         fi
     done
