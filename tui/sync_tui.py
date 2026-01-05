@@ -34,7 +34,7 @@ try:
         TabPane,
     )
     from textual.binding import Binding
-    from textual.screen import Screen, ModalScreen
+    from textual.screen import ModalScreen
     from textual.message import Message
     from rich.text import Text
 except ImportError:
@@ -438,311 +438,6 @@ class QuickPullDialog(ModalScreen):
 
 
 # =============================================================================
-# MAIN SCREEN
-# =============================================================================
-
-class MainScreen(Screen):
-    """Main dashboard with tabbed navigation."""
-
-    BINDINGS = [
-        Binding("q", "quit", "Quit"),
-        Binding("r", "refresh", "Refresh"),
-        Binding("p", "push", "Push"),
-        Binding("l", "pull", "Pull"),
-        Binding("s", "share", "Share"),
-        Binding("1", "tab_servers", "Servers"),
-        Binding("2", "tab_inbox", "Inbox"),
-        Binding("3", "tab_outbox", "Outbox"),
-        Binding("4", "tab_activity", "Activity"),
-        Binding("?", "help", "Help"),
-    ]
-
-    def __init__(self, base_dir: Path, config_dir: Path, **kwargs):
-        super().__init__(**kwargs)
-        self.base_dir = base_dir
-        self.config_dir = config_dir
-        self.logs_dir = base_dir / "logs"
-
-    def compose(self) -> ComposeResult:
-        yield Header()
-
-        # Quick stats bar
-        with Container(id="stats-bar"):
-            yield QuickStats(self.base_dir)
-            with Horizontal(id="quick-actions"):
-                yield Button("↑ Push", id="btn-push", variant="primary")
-                yield Button("↓ Pull", id="btn-pull", variant="primary")
-                yield Button("⇄ Share", id="btn-share", variant="success")
-
-        # Main tabbed content
-        with TabbedContent(id="main-tabs"):
-            with TabPane("Servers", id="tab-servers"):
-                yield from self._compose_servers_tab()
-
-            with TabPane("Inbox", id="tab-inbox"):
-                yield from self._compose_inbox_tab()
-
-            with TabPane("Outbox", id="tab-outbox"):
-                yield from self._compose_outbox_tab()
-
-            with TabPane("Activity", id="tab-activity"):
-                yield from self._compose_activity_tab()
-
-        yield Footer()
-
-    def _compose_servers_tab(self) -> ComposeResult:
-        servers = load_servers(self.config_dir)
-
-        if not servers:
-            yield EmptyState(
-                icon="📡",
-                title="No Servers Configured",
-                subtitle="Add servers to start syncing files",
-                action="Edit ~/.sync-shuttle/config/servers.toml"
-            )
-        else:
-            yield Static("[bold]Your Servers[/bold]\n", classes="section-title")
-            with ScrollableContainer(id="server-list"):
-                for server in servers:
-                    yield ServerCard(server)
-
-    def _compose_inbox_tab(self) -> ComposeResult:
-        inbox_path = self.base_dir / "local" / "inbox"
-
-        yield Static(
-            "[bold]📥 Inbox[/bold] — Files received from other servers\n",
-            classes="section-title"
-        )
-
-        if inbox_path.exists() and any(inbox_path.iterdir()):
-            with ScrollableContainer():
-                yield FileTree(inbox_path, "Received Files")
-        else:
-            yield EmptyState(
-                icon="📥",
-                title="Inbox Empty",
-                subtitle="Files you pull from servers appear here",
-                action="Press [bold]l[/bold] to pull from a server"
-            )
-
-    def _compose_outbox_tab(self) -> ComposeResult:
-        outbox_path = self.base_dir / "local" / "outbox"
-
-        yield Static(
-            "[bold]📤 Outbox[/bold] — Files shared for others to pull\n",
-            classes="section-title"
-        )
-
-        # Show structure explanation
-        yield Static(
-            "[dim]├─ global/     → Available to all servers\n"
-            "└─ <server>/   → Available to specific server[/dim]\n",
-            classes="structure-hint"
-        )
-
-        if outbox_path.exists() and any(outbox_path.iterdir()):
-            with ScrollableContainer():
-                yield FileTree(outbox_path, "Shared Files")
-        else:
-            yield EmptyState(
-                icon="📤",
-                title="Nothing Shared",
-                subtitle="Share files so others can pull them",
-                action="Press [bold]s[/bold] to share a file"
-            )
-
-    def _compose_activity_tab(self) -> ComposeResult:
-        operations = load_operations(self.logs_dir)
-
-        yield Static("[bold]📊 Recent Activity[/bold]\n", classes="section-title")
-
-        if not operations:
-            yield EmptyState(
-                icon="📊",
-                title="No Activity Yet",
-                subtitle="Your sync operations will appear here",
-                action=""
-            )
-        else:
-            table = DataTable(id="activity-table")
-            table.add_columns("Status", "Type", "Server", "Time", "Details")
-
-            for op in operations[:15]:
-                status = "✓" if op.status == "SUCCESS" else "✗"
-                status_style = "green" if op.status == "SUCCESS" else "red"
-                op_type = "↑ Push" if op.operation == "push" else "↓ Pull"
-                time = relative_time(op.timestamp_start)
-
-                table.add_row(
-                    Text(status, style=status_style),
-                    op_type,
-                    op.server_id[:15],
-                    time,
-                    op.uuid[:8]
-                )
-
-            yield table
-
-    # -------------------------------------------------------------------------
-    # Actions
-    # -------------------------------------------------------------------------
-
-    def action_quit(self) -> None:
-        self.app.exit()
-
-    def action_refresh(self) -> None:
-        self.refresh(recompose=True)
-        self.notify("Refreshed", timeout=1)
-
-    def action_push(self) -> None:
-        self.app.push_screen(
-            QuickPushDialog(self.base_dir, self.config_dir),
-            self._handle_push_result
-        )
-
-    def action_pull(self) -> None:
-        self.app.push_screen(
-            QuickPullDialog(self.config_dir),
-            self._handle_pull_result
-        )
-
-    def action_share(self) -> None:
-        self.app.push_screen(
-            QuickShareDialog(self.base_dir, self.config_dir),
-            self._handle_share_result
-        )
-
-    def action_tab_servers(self) -> None:
-        tabs = self.query_one("#main-tabs", TabbedContent)
-        tabs.active = "tab-servers"
-
-    def action_tab_inbox(self) -> None:
-        tabs = self.query_one("#main-tabs", TabbedContent)
-        tabs.active = "tab-inbox"
-
-    def action_tab_outbox(self) -> None:
-        tabs = self.query_one("#main-tabs", TabbedContent)
-        tabs.active = "tab-outbox"
-
-    def action_tab_activity(self) -> None:
-        tabs = self.query_one("#main-tabs", TabbedContent)
-        tabs.active = "tab-activity"
-
-    def action_help(self) -> None:
-        self.notify(
-            "p=Push  l=Pull  s=Share  1-4=Tabs  r=Refresh  q=Quit",
-            timeout=5
-        )
-
-    # -------------------------------------------------------------------------
-    # Event Handlers
-    # -------------------------------------------------------------------------
-
-    async def on_button_pressed(self, event: Button.Pressed) -> None:
-        btn = event.button.id
-
-        if btn == "btn-push":
-            self.action_push()
-        elif btn == "btn-pull":
-            self.action_pull()
-        elif btn == "btn-share":
-            self.action_share()
-
-    # -------------------------------------------------------------------------
-    # Command Execution
-    # -------------------------------------------------------------------------
-
-    def _handle_push_result(self, result) -> None:
-        if result is None:
-            return
-
-        server_id, source = result
-        self._execute_push(server_id, source)
-
-    def _handle_pull_result(self, result) -> None:
-        if result is None:
-            return
-
-        self._execute_pull(result)
-
-    def _handle_share_result(self, result) -> None:
-        if result is None:
-            return
-
-        target, source = result
-        self._execute_share(target, source)
-
-    def _execute_push(self, server_id: str, source: str) -> None:
-        script = Path(__file__).parent.parent / "sync-shuttle.sh"
-        args = ["push", "--server", server_id, "--source", source]
-
-        self.notify(f"Pushing to {server_id}...", timeout=2)
-
-        try:
-            result = subprocess.run(
-                [str(script)] + args,
-                capture_output=True,
-                text=True,
-                timeout=60,
-            )
-
-            if result.returncode == 0:
-                self.notify("✓ Push complete!", severity="information")
-            else:
-                self.notify(f"Push failed: {result.stderr[:80]}", severity="error")
-        except Exception as e:
-            self.notify(f"Error: {e}", severity="error")
-
-    def _execute_pull(self, server_id: str) -> None:
-        script = Path(__file__).parent.parent / "sync-shuttle.sh"
-        args = ["pull", "--server", server_id]
-
-        self.notify(f"Pulling from {server_id}...", timeout=2)
-
-        try:
-            result = subprocess.run(
-                [str(script)] + args,
-                capture_output=True,
-                text=True,
-                timeout=60,
-            )
-
-            if result.returncode == 0:
-                self.notify("✓ Pull complete!", severity="information")
-                self.action_refresh()
-            else:
-                self.notify(f"Pull failed: {result.stderr[:80]}", severity="error")
-        except Exception as e:
-            self.notify(f"Error: {e}", severity="error")
-
-    def _execute_share(self, target: str, source: str) -> None:
-        script = Path(__file__).parent.parent / "sync-shuttle.sh"
-
-        if target == "global":
-            args = ["share", "--global", "--source", source]
-        else:
-            args = ["share", "--server", target, "--source", source]
-
-        self.notify(f"Sharing...", timeout=2)
-
-        try:
-            result = subprocess.run(
-                [str(script)] + args,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-
-            if result.returncode == 0:
-                self.notify("✓ File shared!", severity="information")
-                self.action_refresh()
-            else:
-                self.notify(f"Share failed: {result.stderr[:80]}", severity="error")
-        except Exception as e:
-            self.notify(f"Error: {e}", severity="error")
-
-
-# =============================================================================
 # MAIN APPLICATION
 # =============================================================================
 
@@ -944,14 +639,250 @@ class SyncShuttleTUI(App):
     """
 
     TITLE = "Sync Shuttle"
+    BINDINGS = [
+        Binding("q", "quit", "Quit"),
+        Binding("r", "refresh", "Refresh"),
+        Binding("p", "push", "Push"),
+        Binding("l", "pull", "Pull"),
+        Binding("s", "share", "Share"),
+        Binding("1", "tab_servers", "Servers"),
+        Binding("2", "tab_inbox", "Inbox"),
+        Binding("3", "tab_outbox", "Outbox"),
+        Binding("4", "tab_activity", "Activity"),
+        Binding("?", "help", "Help"),
+    ]
 
     def __init__(self, base_dir: Path, config_dir: Path):
         super().__init__()
         self.base_dir = base_dir
         self.config_dir = config_dir
+        self.logs_dir = base_dir / "logs"
 
-    def on_mount(self) -> None:
-        self.push_screen(MainScreen(self.base_dir, self.config_dir))
+    def compose(self) -> ComposeResult:
+        yield Header()
+
+        with Container(id="stats-bar"):
+            yield QuickStats(self.base_dir)
+            with Horizontal(id="quick-actions"):
+                yield Button("↑ Push", id="btn-push", variant="primary")
+                yield Button("↓ Pull", id="btn-pull", variant="primary")
+                yield Button("⇄ Share", id="btn-share", variant="success")
+
+        with TabbedContent(id="main-tabs"):
+            with TabPane("Servers", id="tab-servers"):
+                servers = load_servers(self.config_dir)
+                if not servers:
+                    yield EmptyState(
+                        icon="📡",
+                        title="No Servers Configured",
+                        subtitle="Add servers to start syncing files",
+                        action="Edit ~/.sync-shuttle/config/servers.toml"
+                    )
+                else:
+                    yield Static("[bold]Your Servers[/bold]\n", classes="section-title")
+                    with ScrollableContainer(id="server-list"):
+                        for server in servers:
+                            yield ServerCard(server)
+
+            with TabPane("Inbox", id="tab-inbox"):
+                inbox_path = self.base_dir / "local" / "inbox"
+                yield Static(
+                    "[bold]📥 Inbox[/bold] — Files received from other servers\n",
+                    classes="section-title"
+                )
+                if inbox_path.exists() and any(inbox_path.iterdir()):
+                    with ScrollableContainer():
+                        yield FileTree(inbox_path, "Received Files")
+                else:
+                    yield EmptyState(
+                        icon="📥",
+                        title="Inbox Empty",
+                        subtitle="Files you pull from servers appear here",
+                        action="Press [bold]l[/bold] to pull from a server"
+                    )
+
+            with TabPane("Outbox", id="tab-outbox"):
+                outbox_path = self.base_dir / "local" / "outbox"
+                yield Static(
+                    "[bold]📤 Outbox[/bold] — Files shared for others to pull\n",
+                    classes="section-title"
+                )
+                yield Static(
+                    "[dim]├─ global/     → Available to all servers\n"
+                    "└─ <server>/   → Available to specific server[/dim]\n",
+                    classes="structure-hint"
+                )
+                if outbox_path.exists() and any(outbox_path.iterdir()):
+                    with ScrollableContainer():
+                        yield FileTree(outbox_path, "Shared Files")
+                else:
+                    yield EmptyState(
+                        icon="📤",
+                        title="Nothing Shared",
+                        subtitle="Share files so others can pull them",
+                        action="Press [bold]s[/bold] to share a file"
+                    )
+
+            with TabPane("Activity", id="tab-activity"):
+                operations = load_operations(self.logs_dir)
+                yield Static("[bold]📊 Recent Activity[/bold]\n", classes="section-title")
+                if not operations:
+                    yield EmptyState(
+                        icon="📊",
+                        title="No Activity Yet",
+                        subtitle="Your sync operations will appear here",
+                        action=""
+                    )
+                else:
+                    table = DataTable(id="activity-table")
+                    table.add_columns("Status", "Type", "Server", "Time", "Details")
+                    for op in operations[:15]:
+                        status = "✓" if op.status == "SUCCESS" else "✗"
+                        status_style = "green" if op.status == "SUCCESS" else "red"
+                        op_type = "↑ Push" if op.operation == "push" else "↓ Pull"
+                        time = relative_time(op.timestamp_start)
+                        table.add_row(
+                            Text(status, style=status_style),
+                            op_type,
+                            op.server_id[:15],
+                            time,
+                            op.uuid[:8]
+                        )
+                    yield table
+
+        yield Footer()
+
+    def action_quit(self) -> None:
+        self.exit()
+
+    def action_refresh(self) -> None:
+        self.refresh(recompose=True)
+        self.notify("Refreshed", timeout=1)
+
+    def action_push(self) -> None:
+        self.push_screen(
+            QuickPushDialog(self.base_dir, self.config_dir),
+            self._handle_push_result
+        )
+
+    def action_pull(self) -> None:
+        self.push_screen(
+            QuickPullDialog(self.config_dir),
+            self._handle_pull_result
+        )
+
+    def action_share(self) -> None:
+        self.push_screen(
+            QuickShareDialog(self.base_dir, self.config_dir),
+            self._handle_share_result
+        )
+
+    def action_tab_servers(self) -> None:
+        tabs = self.query_one("#main-tabs", TabbedContent)
+        tabs.active = "tab-servers"
+
+    def action_tab_inbox(self) -> None:
+        tabs = self.query_one("#main-tabs", TabbedContent)
+        tabs.active = "tab-inbox"
+
+    def action_tab_outbox(self) -> None:
+        tabs = self.query_one("#main-tabs", TabbedContent)
+        tabs.active = "tab-outbox"
+
+    def action_tab_activity(self) -> None:
+        tabs = self.query_one("#main-tabs", TabbedContent)
+        tabs.active = "tab-activity"
+
+    def action_help(self) -> None:
+        self.notify(
+            "p=Push  l=Pull  s=Share  1-4=Tabs  r=Refresh  q=Quit",
+            timeout=5
+        )
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        btn = event.button.id
+        if btn == "btn-push":
+            self.action_push()
+        elif btn == "btn-pull":
+            self.action_pull()
+        elif btn == "btn-share":
+            self.action_share()
+
+    def _handle_push_result(self, result) -> None:
+        if result is None:
+            return
+        server_id, source = result
+        self._execute_push(server_id, source)
+
+    def _handle_pull_result(self, result) -> None:
+        if result is None:
+            return
+        self._execute_pull(result)
+
+    def _handle_share_result(self, result) -> None:
+        if result is None:
+            return
+        target, source = result
+        self._execute_share(target, source)
+
+    def _execute_push(self, server_id: str, source: str) -> None:
+        script = Path(__file__).parent.parent / "sync-shuttle.sh"
+        args = ["push", "--server", server_id, "--source", source]
+        self.notify(f"Pushing to {server_id}...", timeout=2)
+        try:
+            result = subprocess.run(
+                [str(script)] + args,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if result.returncode == 0:
+                self.notify("✓ Push complete!", severity="information")
+            else:
+                self.notify(f"Push failed: {result.stderr[:80]}", severity="error")
+        except Exception as e:
+            self.notify(f"Error: {e}", severity="error")
+
+    def _execute_pull(self, server_id: str) -> None:
+        script = Path(__file__).parent.parent / "sync-shuttle.sh"
+        args = ["pull", "--server", server_id]
+        self.notify(f"Pulling from {server_id}...", timeout=2)
+        try:
+            result = subprocess.run(
+                [str(script)] + args,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if result.returncode == 0:
+                self.notify("✓ Pull complete!", severity="information")
+                self.action_refresh()
+            else:
+                self.notify(f"Pull failed: {result.stderr[:80]}", severity="error")
+        except Exception as e:
+            self.notify(f"Error: {e}", severity="error")
+
+    def _execute_share(self, target: str, source: str) -> None:
+        script = Path(__file__).parent.parent / "sync-shuttle.sh"
+        if target == "global":
+            args = ["share", "--global", "--source", source]
+        else:
+            args = ["share", "--server", target, "--source", source]
+        self.notify(f"Sharing...", timeout=2)
+        try:
+            result = subprocess.run(
+                [str(script)] + args,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode == 0:
+                self.notify("✓ File shared!", severity="information")
+                self.action_refresh()
+            else:
+                self.notify(f"Share failed: {result.stderr[:80]}", severity="error")
+        except Exception as e:
+            self.notify(f"Error: {e}", severity="error")
 
 
 # =============================================================================
