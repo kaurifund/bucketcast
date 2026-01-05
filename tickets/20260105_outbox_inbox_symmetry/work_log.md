@@ -21,6 +21,9 @@
 | 2026-01-05 | 2 | Verification: subdirs created on-demand | ✅ (by design) |
 | 2026-01-05 | 3 | Decision: Option C selected | Separate share command (Task 6) |
 | 2026-01-05 | 3 | No changes to push command | Push remains simple |
+| 2026-01-05 | 4 | Updated SPECIFICATION.md | Lines 40, 81-85, 173 |
+| 2026-01-05 | 4 | Updated README.md | Lines 69-73 |
+| 2026-01-05 | 4 | Verification: directory structure accurate | ✅ |
 
 ---
 
@@ -30,7 +33,7 @@
 - [x] Task 1: Update pull to check global/ and per-server outbox
 - [x] Task 2: Update directory initialization
 - [x] Task 3: Auto-populate local outbox on push (optional)
-- [ ] Task 4: Update documentation
+- [x] Task 4: Update documentation
 - [ ] Task 5: Update tests
 - [ ] Task 6: Add share command
 - [ ] Task 7: Migrate existing outbox/ files to outbox/global/

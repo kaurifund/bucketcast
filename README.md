@@ -67,7 +67,10 @@ After initialization, Sync Shuttle creates:
 │       └── files/           # Files synced with this server
 ├── local/
 │   ├── inbox/               # Files received from remotes
-│   └── outbox/              # Files staged for sending
+│   │   └── <server_id>/     # Per-server incoming files
+│   └── outbox/              # Files shared with remotes
+│       ├── global/          # Available to all servers
+│       └── <server_id>/     # Server-specific shares
 ├── logs/
 │   ├── sync.log             # Human-readable log
 │   └── sync.jsonl           # JSON Lines log
