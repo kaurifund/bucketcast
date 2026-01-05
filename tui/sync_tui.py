@@ -283,6 +283,7 @@ class MainScreen(Screen):
         Binding("r", "refresh", "Refresh"),
         Binding("p", "push", "Push"),
         Binding("l", "pull", "Pull"),
+        Binding("h", "share", "Share"),
         Binding("s", "servers", "Servers"),
         Binding("o", "operations", "Operations"),
     ]
@@ -321,6 +322,7 @@ class MainScreen(Screen):
             with Horizontal(id="actions-row"):
                 yield Button("Push", id="btn-push", variant="primary")
                 yield Button("Pull", id="btn-pull", variant="primary")
+                yield Button("Share", id="btn-share", variant="primary")
                 yield Button("Dry Run", id="btn-dryrun", variant="warning")
                 yield Button("Status", id="btn-status", variant="default")
                 yield Button("Refresh", id="btn-refresh", variant="default")
@@ -334,7 +336,11 @@ class MainScreen(Screen):
     def action_quit(self) -> None:
         """Quit the application."""
         self.app.exit()
-    
+
+    def action_share(self) -> None:
+        """Open share screen."""
+        self.app.push_screen(ShareScreen(self.base_dir, self.config_dir))
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         button_id = event.button.id
@@ -347,6 +353,8 @@ class MainScreen(Screen):
             self.app.push_screen(PushScreen(self.base_dir, self.config_dir))
         elif button_id == "btn-pull":
             self.app.push_screen(PullScreen(self.base_dir, self.config_dir))
+        elif button_id == "btn-share":
+            self.app.push_screen(ShareScreen(self.base_dir, self.config_dir))
         elif button_id == "btn-dryrun":
             self.notify("Select an operation first", severity="warning")
     
@@ -525,6 +533,137 @@ class PullScreen(Screen):
         self.notify(f"Running: sync-shuttle {' '.join(args)}")
 
 
+class ShareScreen(Screen):
+    """Share files via outbox screen."""
+
+    BINDINGS = [
+        Binding("escape", "pop_screen", "Back"),
+    ]
+
+    def __init__(self, base_dir: Path, config_dir: Path, **kwargs):
+        super().__init__(**kwargs)
+        self.base_dir = base_dir
+        self.config_dir = config_dir
+        self.selected_server = None
+        self.share_mode = "global"  # "global" or "server"
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+
+        with Container(id="share-container"):
+            yield Static("[bold]Share Files via Outbox[/bold]\n", classes="screen-title")
+            yield Static("Shared files can be pulled by remote servers.\n", classes="help-text")
+
+            with Vertical(id="share-form"):
+                yield Static("Share Mode:")
+                with Horizontal(id="mode-row"):
+                    yield Button("Global (All Servers)", id="btn-mode-global", variant="primary")
+                    yield Button("Specific Server", id="btn-mode-server", variant="default")
+
+                yield Static("\nServer (for server-specific shares):")
+                servers = load_servers(self.config_dir)
+                yield ServerList([s for s in servers if s.enabled], id="server-select")
+
+                yield Static("\nSource Path:")
+                yield Input(
+                    placeholder="Enter path to share (e.g., ~/document.pdf)",
+                    id="source-input"
+                )
+
+                yield Static("\nCurrent Shares:", classes="section-title")
+                outbox_path = self.base_dir / "local" / "outbox"
+                if outbox_path.exists():
+                    yield FileBrowser(outbox_path, "Outbox")
+                else:
+                    yield Static("No files shared yet")
+
+            with Horizontal(id="share-actions"):
+                yield Button("Share File", id="btn-execute", variant="success")
+                yield Button("List Shares", id="btn-list", variant="default")
+                yield Button("Cancel", id="btn-cancel", variant="error")
+
+        yield Footer()
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-cancel":
+            self.app.pop_screen()
+        elif event.button.id == "btn-mode-global":
+            self.share_mode = "global"
+            self.query_one("#btn-mode-global", Button).variant = "primary"
+            self.query_one("#btn-mode-server", Button).variant = "default"
+            self.notify("Mode: Global (all servers can pull)")
+        elif event.button.id == "btn-mode-server":
+            self.share_mode = "server"
+            self.query_one("#btn-mode-global", Button).variant = "default"
+            self.query_one("#btn-mode-server", Button).variant = "primary"
+            self.notify("Mode: Server-specific (select a server)")
+        elif event.button.id == "btn-execute":
+            await self.execute_share()
+        elif event.button.id == "btn-list":
+            await self.list_shares()
+
+    async def execute_share(self) -> None:
+        source_input = self.query_one("#source-input", Input)
+        source = source_input.value.strip()
+
+        if not source:
+            self.notify("Please enter a source path", severity="error")
+            return
+
+        args = ["share", "--source", source]
+
+        if self.share_mode == "global":
+            args.append("--global")
+        else:
+            if not self.selected_server:
+                self.notify("Please select a server for server-specific share", severity="error")
+                return
+            args.extend(["--server", self.selected_server])
+
+        script_path = Path(__file__).parent.parent / "sync-shuttle.sh"
+
+        try:
+            result = subprocess.run(
+                [str(script_path)] + args,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode == 0:
+                self.notify("File shared successfully!")
+                # Refresh the screen to show new file
+                self.refresh()
+            else:
+                self.notify(f"Share failed: {result.stderr[:100]}", severity="error")
+        except subprocess.TimeoutExpired:
+            self.notify("Command timed out", severity="error")
+        except Exception as e:
+            self.notify(f"Error: {str(e)}", severity="error")
+
+    async def list_shares(self) -> None:
+        script_path = Path(__file__).parent.parent / "sync-shuttle.sh"
+
+        try:
+            result = subprocess.run(
+                [str(script_path), "share", "--list"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            self.notify(f"Shares listed (see terminal output)")
+        except Exception as e:
+            self.notify(f"Error: {str(e)}", severity="error")
+
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        """Handle server selection."""
+        item_id = event.item.id or ""
+        if item_id.startswith("server-"):
+            self.selected_server = item_id[7:]  # Remove "server-" prefix
+            self.notify(f"Selected server: {self.selected_server}")
+
+
 # =============================================================================
 # MAIN APPLICATION
 # =============================================================================
@@ -589,8 +728,27 @@ class SyncShuttleTUI(App):
         padding: 1;
     }
     
-    #push-container, #pull-container {
+    #push-container, #pull-container, #share-container {
         padding: 2;
+    }
+
+    #mode-row {
+        height: 3;
+        padding: 1 0;
+    }
+
+    #mode-row Button {
+        margin-right: 1;
+    }
+
+    #share-actions {
+        height: 5;
+        align: center middle;
+        padding: 1;
+    }
+
+    .help-text {
+        color: $text-muted;
     }
     
     #options-row {

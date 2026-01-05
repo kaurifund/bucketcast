@@ -39,6 +39,9 @@
 | 2026-01-05 | - | Audit: verified installer triggers migrations | ✅ |
 | 2026-01-05 | - | Audit: added share command to README.md | Fixed |
 | 2026-01-05 | - | Audit: added share command to --help output | Fixed |
+| 2026-01-05 | - | Added ShareScreen to TUI | tui/sync_tui.py:528-656 |
+| 2026-01-05 | - | Added Share button and 'h' keybinding | MainScreen updated |
+| 2026-01-05 | - | Verification: Python syntax check passed | ✅ |
 
 ---
 
