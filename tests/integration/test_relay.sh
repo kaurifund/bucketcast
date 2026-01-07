@@ -140,7 +140,7 @@ test_relay_finds_files_in_inbox() {
     # Count files as relay would
     local file_count=0
     while IFS= read -r -d '' file; do
-        ((file_count++))
+        ((++file_count))
     done < <(find "$inbox_dir" -type f -print0 2>/dev/null)
 
     if [[ $file_count -ne 2 ]]; then
@@ -161,7 +161,7 @@ test_relay_handles_empty_inbox() {
     # Count files as relay would
     local file_count=0
     while IFS= read -r -d '' file; do
-        ((file_count++))
+        ((++file_count))
     done < <(find "$inbox_dir" -type f -print0 2>/dev/null)
 
     if [[ $file_count -ne 0 ]]; then
@@ -278,7 +278,7 @@ test_relay_selects_multiple_files_via_source_paths() {
     for src in "${SOURCE_PATHS[@]}"; do
         local target_file="${inbox_dir}/$(basename "$src")"
         if [[ -e "$target_file" ]]; then
-            ((files_found++))
+            ((++files_found))
         fi
     done
 
@@ -306,9 +306,9 @@ test_relay_handles_partial_source_paths_match() {
     for src in "${SOURCE_PATHS[@]}"; do
         local target_file="${inbox_dir}/$(basename "$src")"
         if [[ -e "$target_file" ]]; then
-            ((files_found++))
+            ((++files_found))
         else
-            ((files_missing++))
+            ((++files_missing))
         fi
     done
 
@@ -362,7 +362,7 @@ test_relay_finds_files_in_nested_directories() {
     # Count all files recursively as relay would
     local file_count=0
     while IFS= read -r -d '' file; do
-        ((file_count++))
+        ((++file_count))
     done < <(find "$inbox_dir" -type f -print0 2>/dev/null)
 
     if [[ $file_count -ne 3 ]]; then

@@ -1199,7 +1199,7 @@ action_relay() {
             local target_file="${search_dir}/$(basename "$src")"
             if [[ -e "$target_file" ]]; then
                 files_to_relay+=("$target_file")
-                ((file_count++))
+                ((++file_count))
             else
                 log_warn "Requested file not found in inbox: $(basename "$src")"
             fi
@@ -1209,7 +1209,7 @@ action_relay() {
         if [[ -d "$search_dir" ]]; then
             while IFS= read -r -d '' file; do
                 files_to_relay+=("$file")
-                ((file_count++))
+                ((++file_count))
             done < <(find "$search_dir" -type f -print0 2>/dev/null)
         fi
     fi
@@ -1247,7 +1247,7 @@ action_relay() {
             local filename
             filename=$(basename "$file")
             log_info "[DRY-RUN] Would relay: $filename -> ${TO_SERVER}"
-            ((push_count++))
+            ((++push_count))
         done
     else
         # Create single staging directory for all files
