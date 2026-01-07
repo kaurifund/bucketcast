@@ -237,15 +237,66 @@ test_validate_transfer_size_accepts_small_files() {
 test_validate_transfer_size_parses_size_limits() {
     # Test that various size formats are understood
     local sizes=("1K" "1M" "1G" "100M" "10G")
-    
+
     for size in "${sizes[@]}"; do
         export MAX_TRANSFER_SIZE="$size"
         local test_file="${TEST_DIR}/tiny.txt"
         echo "x" > "$test_file"
-        
+
         if ! validate_transfer_size "$test_file"; then
             echo "Should accept file with MAX_TRANSFER_SIZE=$size"
             return 1
         fi
     done
+}
+
+#===============================================================================
+# RELAY VALIDATION TESTS
+#===============================================================================
+
+test_validate_relay_params_rejects_invalid_from_server_id() {
+    # Server IDs with invalid format should fail
+    local invalid_ids=(
+        "ab"                  # Too short (min 3)
+        "A"                   # Too short + uppercase
+        "server--double"      # Consecutive dashes
+        "global"              # Reserved namespace
+        "UPPERCASE"           # Must be lowercase
+    )
+
+    for from_id in "${invalid_ids[@]}"; do
+        if validate_relay_params "$from_id" "valid-server" 2>/dev/null; then
+            echo "Should reject invalid from server ID: $from_id"
+            return 1
+        fi
+    done
+}
+
+test_validate_relay_params_rejects_invalid_to_server_id() {
+    # Server IDs with invalid format should fail
+    local invalid_ids=(
+        "ab"                  # Too short (min 3)
+        "global"              # Reserved namespace
+        "server name"         # Contains space
+    )
+
+    for to_id in "${invalid_ids[@]}"; do
+        if validate_relay_params "valid-server" "$to_id" 2>/dev/null; then
+            echo "Should reject invalid to server ID: $to_id"
+            return 1
+        fi
+    done
+}
+
+test_validate_relay_params_rejects_reserved_namespace() {
+    # "global" is reserved and cannot be used as server ID
+    if validate_relay_params "global" "server-b" 2>/dev/null; then
+        echo "Should reject 'global' as from server (reserved)"
+        return 1
+    fi
+
+    if validate_relay_params "server-a" "global" 2>/dev/null; then
+        echo "Should reject 'global' as to server (reserved)"
+        return 1
+    fi
 }

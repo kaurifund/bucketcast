@@ -30,6 +30,10 @@
 | 2026-01-07 | 8 | Logging included in action_relay() | Line 1250-1252 |
 | 2026-01-07 | 9 | Updated SPECIFICATION.md | Added section 2, CLI options |
 | 2026-01-07 | 9 | Updated README.md | Commands, Options, Examples |
+| 2026-01-07 | 10 | Added relay validation unit tests | tests/unit/test_validation.sh |
+| 2026-01-07 | 10 | Verification: syntax check passed | bash -n ✓ |
+| 2026-01-07 | 11 | Created tests/integration/test_relay.sh | 11 test functions |
+| 2026-01-07 | 11 | Verification: syntax check passed | bash -n ✓ |
 
 ---
 
@@ -44,8 +48,8 @@
 - [x] Task 7: Implement `action_relay()` main function
 - [x] Task 8: Add relay operation logging support
 - [x] Task 9: Update documentation (SPECIFICATION.md, README.md)
-- [ ] Task 10: Add unit tests for relay validation
-- [ ] Task 11: Add integration tests for relay operation
+- [x] Task 10: Add unit tests for relay validation
+- [x] Task 11: Add integration tests for relay operation
 - [ ] Task 12: Verify end-to-end relay workflow
 
 ---
