@@ -77,7 +77,7 @@ get_call_args() {
                 echo "${call#*:}"
                 return
             fi
-            ((count++))
+            ((++count))
         fi
     done
 }

@@ -279,7 +279,7 @@ cleanup_s3_archives() {
         
         if [[ "$date" < "$cutoff_date" ]]; then
             log_debug "Would delete: $path (from $date)"
-            ((deleted_count++))
+            ((++deleted_count))
         fi
     done
     
