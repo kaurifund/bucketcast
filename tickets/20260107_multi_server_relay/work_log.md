@@ -57,8 +57,25 @@
 
 ---
 
+## Part 2 Tasks (From Audit)
+
+| # | Task | Status | Blocking |
+|---|------|--------|----------|
+| P2-1 | Config loading fix | N/A | Re-evaluated: already correct |
+| P2-2 | Batch staging directory | [ ] | Performance fix |
+| P2-3 | Fix dry-run logic | [ ] | Critical bug |
+| P2-4 | Multiple -S support | [ ] | Enhancement |
+| P2-5 | --global flag support | [ ] | BLOCKED: awaiting rebase |
+| P2-6 | --global documentation | [ ] | Depends on P2-5 |
+| P2-7 | Add test scenarios | [ ] | After P2-2 to P2-5 |
+| P2-8 | Update status | [ ] | Last |
+
+---
+
 ## Notes
 
 - Implementation follows the 10 principles from the project guidelines
 - Each task requires user approval before marking complete
 - All changes must pass syntax validation before proceeding
+- Part 2 tasks address issues found in audit (see AUDIT_REPORT.md)
+- P2-5 and P2-6 are blocked until outbox_inbox_symmetry branch is merged
