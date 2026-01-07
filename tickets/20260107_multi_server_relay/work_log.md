@@ -28,6 +28,8 @@
 | 2026-01-07 | 7 | 3-phase: Pull → Identify → Push | ~145 lines |
 | 2026-01-07 | 7 | Verification: syntax check passed | bash -n ✓ |
 | 2026-01-07 | 8 | Logging included in action_relay() | Line 1250-1252 |
+| 2026-01-07 | 9 | Updated SPECIFICATION.md | Added section 2, CLI options |
+| 2026-01-07 | 9 | Updated README.md | Commands, Options, Examples |
 
 ---
 
@@ -41,7 +43,7 @@
 - [x] Task 6: Add `preflight_relay()` in lib/validation.sh
 - [x] Task 7: Implement `action_relay()` main function
 - [x] Task 8: Add relay operation logging support
-- [ ] Task 9: Update documentation (SPECIFICATION.md, README.md)
+- [x] Task 9: Update documentation (SPECIFICATION.md, README.md)
 - [ ] Task 10: Add unit tests for relay validation
 - [ ] Task 11: Add integration tests for relay operation
 - [ ] Task 12: Verify end-to-end relay workflow

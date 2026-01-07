@@ -84,6 +84,7 @@ After initialization, Sync Shuttle creates:
 | `init` | Initialize directory structure |
 | `push` | Push files TO a remote server |
 | `pull` | Pull files FROM a remote server |
+| `relay` | Relay files between servers (via local) |
 | `list servers` | List configured servers |
 | `list files` | List files for a server |
 | `status` | Show sync status |
@@ -95,6 +96,8 @@ After initialization, Sync Shuttle creates:
 |------|-------------|
 | `-s, --server <id>` | Target server ID |
 | `-S, --source <path>` | Source file/directory |
+| `-F, --from <id>` | Source server for relay |
+| `-T, --to <id>` | Destination server for relay |
 | `-n, --dry-run` | Preview without executing |
 | `-f, --force` | Allow overwrites (prompts) |
 | `-v, --verbose` | Verbose output |
@@ -121,6 +124,13 @@ sync-shuttle.sh push -s myserver -S ~/updated.txt --force
 
 # With S3 archival
 sync-shuttle.sh push -s myserver -S ~/backup/ --s3-archive
+
+# Relay files from one server to another
+sync-shuttle relay --from serverA --to serverB --dry-run
+sync-shuttle relay --from serverA --to serverB
+
+# Relay specific file only
+sync-shuttle relay --from serverA --to serverB -S myfile.txt
 ```
 
 ## Configuration
