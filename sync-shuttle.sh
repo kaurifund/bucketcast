@@ -339,6 +339,7 @@ MAX_TRANSFER_SIZE="10G"
 ACTION=""
 SERVER_ID=""
 SOURCE_PATH=""
+SOURCE_PATHS=()
 DRY_RUN="false"
 FORCE="false"
 VERBOSE="false"
@@ -350,6 +351,9 @@ CONFIG_ARGS=()
 # Relay-specific variables
 FROM_SERVER=""
 TO_SERVER=""
+# NOTE: GLOBAL_MODE may already exist after rebase from outbox_inbox_symmetry branch
+# If so, remove this duplicate declaration during rebase resolution
+GLOBAL_MODE="false"
 
 #===============================================================================
 # DERIVED PATHS (computed after config load)
@@ -444,6 +448,7 @@ ${BOLD}OPTIONS:${RESET}
     -S, --source <path>     Source file or directory to push
     -F, --from <id>         Source server for relay
     -T, --to <id>           Destination server for relay
+    -g, --global            Relay only files from global outbox (relay command)
     -n, --dry-run           Preview operations without executing
     -f, --force             Allow overwrites (prompts for confirmation)
     -v, --verbose           Verbose output
@@ -470,6 +475,8 @@ ${BOLD}EXAMPLES:${RESET}
     # Relay files from one server to another
     $SCRIPT_NAME relay --from serverA --to serverB --dry-run
     $SCRIPT_NAME relay --from serverA --to serverB
+    $SCRIPT_NAME relay --from serverA --to serverB --global  # Only global outbox files
+    $SCRIPT_NAME relay --from serverA --to serverB -S file.txt -S other.txt
 
 ${BOLD}SAFETY:${RESET}
     • All operations are sandboxed to ~/.sync-shuttle/
@@ -542,6 +549,8 @@ parse_arguments() {
                 fi
                 # Strip trailing slashes to preserve folder names in rsync
                 SOURCE_PATH="${SOURCE_PATH%/}"
+                # Also append to array for multiple -S support
+                SOURCE_PATHS+=("$SOURCE_PATH")
                 shift 2
                 ;;
             -n|--dry-run)
@@ -581,6 +590,12 @@ parse_arguments() {
                     exit 2
                 fi
                 shift 2
+                ;;
+            # NOTE: -g/--global may already exist after rebase from outbox_inbox_symmetry branch
+            # If so, merge this case with the existing one during rebase resolution
+            -g|--global)
+                GLOBAL_MODE="true"
+                shift
                 ;;
             servers|files)
                 # Subcommand for list
@@ -1119,6 +1134,11 @@ action_relay() {
 
     log_info "Starting RELAY operation [${OPERATION_UUID}]"
     log_info "From: ${FROM_SERVER} -> To: ${TO_SERVER}"
+    # NOTE: GLOBAL_MODE support for relay - may need adjustment after rebase
+    # from outbox_inbox_symmetry branch depending on how global paths are structured
+    if [[ "$GLOBAL_MODE" == "true" ]]; then
+        log_info "Mode: GLOBAL (only files from global outbox)"
+    fi
 
     # Run preflight checks for both servers
     if ! preflight_relay "$FROM_SERVER" "$TO_SERVER"; then
@@ -1145,22 +1165,52 @@ action_relay() {
     local files_to_relay=()
     local file_count=0
 
-    if [[ -n "$SOURCE_PATH" ]]; then
-        # Specific file(s) requested
-        local target_file="${inbox_dir}/$(basename "$SOURCE_PATH")"
-        if [[ -e "$target_file" ]]; then
-            files_to_relay+=("$target_file")
-            ((file_count++))
-        else
-            log_warn "Requested file not found in inbox: $SOURCE_PATH"
+    # NOTE: GLOBAL_MODE filtering - may need adjustment after rebase
+    # from outbox_inbox_symmetry branch depending on inbox path structure
+    local search_dir="$inbox_dir"
+    if [[ "$GLOBAL_MODE" == "true" ]]; then
+        # Only look in the global subdirectory
+        search_dir="${inbox_dir}/global"
+        if [[ ! -d "$search_dir" ]]; then
+            log_warn "Global inbox directory does not exist: $search_dir"
+            log_info "Hint: Source server may not have files in outbox/global/"
         fi
+    fi
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        # In dry-run mode, files weren't actually pulled
+        # The rsync --dry-run output above shows what WOULD be pulled
+        log_info "[DRY-RUN] File list shown above from rsync preview"
+        log_info "[DRY-RUN] Those files would be relayed to: ${TO_SERVER}"
+        if [[ "$GLOBAL_MODE" == "true" ]]; then
+            log_info "[DRY-RUN] Filter: only global outbox files"
+        fi
+        if [[ ${#SOURCE_PATHS[@]} -gt 0 ]]; then
+            log_info "[DRY-RUN] Filter: only specified files would be relayed:"
+            for src in "${SOURCE_PATHS[@]}"; do
+                log_info "[DRY-RUN]   - $(basename "$src")"
+            done
+        fi
+        # Set a placeholder count for dry-run summary
+        file_count=1
+    elif [[ ${#SOURCE_PATHS[@]} -gt 0 ]]; then
+        # Specific file(s) requested via -S flags
+        for src in "${SOURCE_PATHS[@]}"; do
+            local target_file="${search_dir}/$(basename "$src")"
+            if [[ -e "$target_file" ]]; then
+                files_to_relay+=("$target_file")
+                ((file_count++))
+            else
+                log_warn "Requested file not found in inbox: $(basename "$src")"
+            fi
+        done
     else
-        # All files from inbox
-        if [[ -d "$inbox_dir" ]]; then
+        # All files from inbox (or global subdirectory if GLOBAL_MODE)
+        if [[ -d "$search_dir" ]]; then
             while IFS= read -r -d '' file; do
                 files_to_relay+=("$file")
                 ((file_count++))
-            done < <(find "$inbox_dir" -type f -print0 2>/dev/null)
+            done < <(find "$search_dir" -type f -print0 2>/dev/null)
         fi
     fi
 
@@ -1170,7 +1220,9 @@ action_relay() {
         return 0
     fi
 
-    log_info "Found $file_count file(s) to relay"
+    if [[ "$DRY_RUN" != "true" ]]; then
+        log_info "Found $file_count file(s) to relay"
+    fi
 
     # Phase 3: Push to destination server
     log_header "Phase 3: Pushing to ${TO_SERVER}"
@@ -1189,42 +1241,46 @@ action_relay() {
     local push_count=0
     local push_failed=0
 
-    for file in "${files_to_relay[@]}"; do
-        local filename
-        filename=$(basename "$file")
-        log_info "Relaying: $filename"
-
-        if [[ "$DRY_RUN" == "true" ]]; then
-            log_info "[DRY-RUN] Would push: $filename -> ${TO_SERVER}"
+    if [[ "$DRY_RUN" == "true" ]]; then
+        # Dry-run: report what would happen
+        for file in "${files_to_relay[@]}"; do
+            local filename
+            filename=$(basename "$file")
+            log_info "[DRY-RUN] Would relay: $filename -> ${TO_SERVER}"
             ((push_count++))
-        else
-            # Create staging directory
-            local staging_dir="${REMOTE_DIR}/${TO_SERVER}/relay-${OPERATION_UUID}"
-            mkdir -p "$staging_dir"
+        done
+    else
+        # Create single staging directory for all files
+        local staging_dir="${REMOTE_DIR}/${TO_SERVER}/relay-${OPERATION_UUID}"
+        mkdir -p "$staging_dir"
 
-            # Copy file to staging
+        # Copy ALL files to staging first
+        for file in "${files_to_relay[@]}"; do
+            local filename
+            filename=$(basename "$file")
+            log_info "Staging: $filename"
             cp -r "$file" "$staging_dir/"
+        done
 
-            # Temporarily set SERVER_ID for sync_to_remote
-            local original_server_id="$SERVER_ID"
-            SERVER_ID="$TO_SERVER"
+        # Single sync operation for all files
+        log_info "Syncing ${file_count} file(s) to ${TO_SERVER}..."
 
-            # Sync to remote
-            if sync_to_remote "$TO_SERVER" "$staging_dir"; then
-                ((push_count++))
-                log_success "Relayed: $filename"
-            else
-                ((push_failed++))
-                log_error "Failed to relay: $filename"
-            fi
+        local original_server_id="$SERVER_ID"
+        SERVER_ID="$TO_SERVER"
 
-            # Restore SERVER_ID
-            SERVER_ID="$original_server_id"
-
-            # Cleanup staging
-            rm -rf "$staging_dir"
+        if sync_to_remote "$TO_SERVER" "$staging_dir"; then
+            push_count=$file_count
+            log_success "Relayed ${push_count} file(s) to ${TO_SERVER}"
+        else
+            push_failed=$file_count
+            log_error "Failed to relay files to ${TO_SERVER}"
         fi
-    done
+
+        SERVER_ID="$original_server_id"
+
+        # Cleanup staging
+        rm -rf "$staging_dir"
+    fi
 
     # Summary
     local timestamp_end

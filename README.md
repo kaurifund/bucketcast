@@ -98,6 +98,7 @@ After initialization, Sync Shuttle creates:
 | `-S, --source <path>` | Source file/directory |
 | `-F, --from <id>` | Source server for relay |
 | `-T, --to <id>` | Destination server for relay |
+| `-g, --global` | Relay only global outbox files |
 | `-n, --dry-run` | Preview without executing |
 | `-f, --force` | Allow overwrites (prompts) |
 | `-v, --verbose` | Verbose output |
@@ -129,8 +130,11 @@ sync-shuttle.sh push -s myserver -S ~/backup/ --s3-archive
 sync-shuttle relay --from serverA --to serverB --dry-run
 sync-shuttle relay --from serverA --to serverB
 
-# Relay specific file only
-sync-shuttle relay --from serverA --to serverB -S myfile.txt
+# Relay only global outbox files
+sync-shuttle relay --from serverA --to serverB --global
+
+# Relay specific files only (multiple -S flags supported)
+sync-shuttle relay --from serverA --to serverB -S myfile.txt -S other.txt
 ```
 
 ## Configuration

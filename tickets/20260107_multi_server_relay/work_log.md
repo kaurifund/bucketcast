@@ -37,6 +37,29 @@
 | 2026-01-07 | 12 | E2E: help output shows relay | ✓ |
 | 2026-01-07 | 12 | E2E: error handling for missing args | ✓ |
 | 2026-01-07 | 12 | E2E: error handling for same server | ✓ |
+| 2026-01-07 | P2-2 | Refactored push loop for batch staging | sync-shuttle.sh:1189-1231 |
+| 2026-01-07 | P2-2 | Verification: syntax check passed | bash -n ✓ |
+| 2026-01-07 | P2-3 | Fixed dry-run logic in Phase 2 | sync-shuttle.sh:1148-1157 |
+| 2026-01-07 | P2-3 | Verification: syntax check passed | bash -n ✓ |
+| 2026-01-07 | P2-4 | Added SOURCE_PATHS array variable | sync-shuttle.sh:342 |
+| 2026-01-07 | P2-4 | Updated -S parsing to append to array | sync-shuttle.sh:547 |
+| 2026-01-07 | P2-4 | Updated relay file discovery for array | sync-shuttle.sh:1156-1174 |
+| 2026-01-07 | P2-4 | Updated test setup for SOURCE_PATHS | tests/integration/test_relay.sh:40 |
+| 2026-01-07 | P2-4 | Verification: syntax check passed | bash -n ✓ |
+| 2026-01-07 | P2-7 | Added multiple -S flag tests | tests/integration/test_relay.sh:262-289 |
+| 2026-01-07 | P2-7 | Added partial match tests | tests/integration/test_relay.sh:291-319 |
+| 2026-01-07 | P2-7 | Added dry-run tests | tests/integration/test_relay.sh:325-344 |
+| 2026-01-07 | P2-7 | Added nested directory tests | tests/integration/test_relay.sh:350-372 |
+| 2026-01-07 | P2-7 | Verification: syntax check passed | bash -n ✓ |
+| 2026-01-07 | P2-5 | Added GLOBAL_MODE variable (w/ rebase note) | sync-shuttle.sh:354-356 |
+| 2026-01-07 | P2-5 | Added -g/--global argument parsing | sync-shuttle.sh:591-596 |
+| 2026-01-07 | P2-5 | Updated relay Phase 2 for global filtering | sync-shuttle.sh:1165-1211 |
+| 2026-01-07 | P2-5 | Verification: syntax check passed | bash -n ✓ |
+| 2026-01-07 | P2-6 | Updated show_usage() with --global | sync-shuttle.sh:451,478-479 |
+| 2026-01-07 | P2-6 | Updated README.md with --global docs | Options table, examples |
+| 2026-01-07 | P2-6 | Updated SPECIFICATION.md with --global | Section 2 |
+| 2026-01-07 | P2-6 | Verification: syntax check passed | bash -n ✓ |
+| 2026-01-07 | P2-8 | Updated work_log.md Part 2 status table | All tasks complete |
 
 ---
 
@@ -62,13 +85,13 @@
 | # | Task | Status | Blocking |
 |---|------|--------|----------|
 | P2-1 | Config loading fix | N/A | Re-evaluated: already correct |
-| P2-2 | Batch staging directory | [ ] | Performance fix |
-| P2-3 | Fix dry-run logic | [ ] | Critical bug |
-| P2-4 | Multiple -S support | [ ] | Enhancement |
-| P2-5 | --global flag support | [ ] | BLOCKED: awaiting rebase |
-| P2-6 | --global documentation | [ ] | Depends on P2-5 |
-| P2-7 | Add test scenarios | [ ] | After P2-2 to P2-5 |
-| P2-8 | Update status | [ ] | Last |
+| P2-2 | Batch staging directory | [x] | Performance fix |
+| P2-3 | Fix dry-run logic | [x] | Critical bug |
+| P2-4 | Multiple -S support | [x] | Enhancement |
+| P2-5 | --global flag support | [x] | With rebase notes |
+| P2-6 | --global documentation | [x] | Complete |
+| P2-7 | Add test scenarios | [x] | Complete |
+| P2-8 | Update status | [x] | Complete |
 
 ---
 

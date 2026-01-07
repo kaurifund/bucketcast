@@ -39,7 +39,9 @@ safety over convenience, ensuring files are never accidentally deleted or overwr
 - Forward files from one server to another via local hub
 - Maintains hub-and-spoke model (servers don't need direct access)
 - Single command: `relay --from <source> --to <dest>`
-- Supports dry-run and specific file selection
+- Supports dry-run, specific file selection (`-S`), and global filtering (`--global`)
+- Multiple `-S` flags supported for selecting multiple files
+- `--global` flag filters to only relay files from global outbox
 - Three-phase workflow: Pull → Identify → Push
 
 ### 3. Sandboxed Operations

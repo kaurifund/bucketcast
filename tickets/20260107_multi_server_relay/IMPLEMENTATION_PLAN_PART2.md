@@ -17,14 +17,14 @@ This plan addresses issues found during the code audit. Some fixes depend on the
 
 | # | Task | Status | Blocking | Depends On |
 |---|------|--------|----------|------------|
-| P2-1 | Fix performance: move config loading outside loop | [ ] | Critical | - |
-| P2-2 | Fix performance: batch staging directory | [ ] | High | - |
-| P2-3 | Fix dry-run logic bug | [ ] | Critical | - |
-| P2-4 | Support multiple -S flags (SOURCE_PATHS array) | [ ] | Medium | - |
-| P2-5 | Add --global flag support for relay | [ ] | High | **REBASE: outbox_inbox_symmetry** |
-| P2-6 | Update documentation for --global | [ ] | Low | P2-5 |
-| P2-7 | Add missing test scenarios | [ ] | Medium | P2-1 to P2-5 |
-| P2-8 | Update IMPLEMENTATION_PLAN.md task statuses | [ ] | Low | All |
+| P2-1 | Fix performance: move config loading outside loop | N/A | Re-evaluated | Already correct in batch impl |
+| P2-2 | Fix performance: batch staging directory | [x] | High | - |
+| P2-3 | Fix dry-run logic bug | [x] | Critical | - |
+| P2-4 | Support multiple -S flags (SOURCE_PATHS array) | [x] | Medium | - |
+| P2-5 | Add --global flag support for relay | [x] | High | With rebase notes |
+| P2-6 | Update documentation for --global | [x] | Low | P2-5 |
+| P2-7 | Add missing test scenarios | [x] | Medium | P2-1 to P2-5 |
+| P2-8 | Update IMPLEMENTATION_PLAN.md task statuses | [x] | Low | All |
 
 ---
 
