@@ -19,10 +19,50 @@ Sync Shuttle is a command-line tool for safely transferring files between your h
 - 🔒 **Safe by Design**: Never deletes files, never overwrites without consent
 - 📁 **Sandboxed Operations**: All files stored in `~/.sync-shuttle/`
 - 🔄 **Bidirectional Sync**: Push to and pull from remote servers
+- 🔀 **Multi-Server Relay**: Move files between servers via your local machine
 - 📝 **Comprehensive Logging**: JSON and human-readable logs
 - 🎯 **Idempotent**: Safe to run multiple times
 - ☁️ **Optional S3 Integration**: Archive to S3 for backup
 - 🖥️ **Optional TUI**: Interactive terminal interface
+
+## When to Use Relay
+
+The `relay` command solves a common problem: **moving files between two servers that can't directly connect to each other**.
+
+### The Problem
+
+You have servers A and B. You want to move files from A to B, but:
+- Server A can't SSH to Server B (firewalls, different networks, no credentials)
+- Server B can't SSH to Server A
+- Your local machine CAN reach both servers
+
+### Without Relay (Tedious)
+
+```bash
+# Step 1: Pull from server A to local
+sync-shuttle pull -s server-a
+
+# Step 2: Manually find and copy files to outbox
+cp ~/.sync-shuttle/local/inbox/server-a/file.txt ~/.sync-shuttle/local/outbox/global/
+
+# Step 3: Push to server B
+sync-shuttle push -s server-b -S ~/.sync-shuttle/local/outbox/global/file.txt
+```
+
+### With Relay (One Command)
+
+```bash
+sync-shuttle relay --from server-a --to server-b
+```
+
+Your local machine acts as a **hub** - it pulls from A, then pushes to B. The servers never need to know about each other.
+
+### Common Relay Scenarios
+
+- Moving deployment artifacts between staging and production servers
+- Transferring logs from production to an analysis server
+- Syncing configuration between servers in different networks
+- Migrating files during server transitions
 
 ## Quick Start
 
