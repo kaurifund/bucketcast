@@ -34,6 +34,9 @@
 | 2026-01-07 | 10 | Verification: syntax check passed | bash -n ✓ |
 | 2026-01-07 | 11 | Created tests/integration/test_relay.sh | 11 test functions |
 | 2026-01-07 | 11 | Verification: syntax check passed | bash -n ✓ |
+| 2026-01-07 | 12 | E2E: help output shows relay | ✓ |
+| 2026-01-07 | 12 | E2E: error handling for missing args | ✓ |
+| 2026-01-07 | 12 | E2E: error handling for same server | ✓ |
 
 ---
 
@@ -50,7 +53,7 @@
 - [x] Task 9: Update documentation (SPECIFICATION.md, README.md)
 - [x] Task 10: Add unit tests for relay validation
 - [x] Task 11: Add integration tests for relay operation
-- [ ] Task 12: Verify end-to-end relay workflow
+- [x] Task 12: Verify end-to-end relay workflow
 
 ---
 
