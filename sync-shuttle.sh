@@ -1378,7 +1378,7 @@ list_servers() {
             "$port"
         printf "    └─ %s\n" "$name"
 
-        ((found_servers++))
+        ((++found_servers))
     done < <("$python" "$parser" "$servers_file" list-detail)
 
     if [[ $found_servers -eq 0 ]]; then
