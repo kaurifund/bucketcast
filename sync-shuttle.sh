@@ -347,6 +347,10 @@ S3_ARCHIVE="false"
 OPERATION_UUID=""
 CONFIG_ARGS=()
 
+# Relay-specific variables
+FROM_SERVER=""
+TO_SERVER=""
+
 #===============================================================================
 # DERIVED PATHS (computed after config load)
 #===============================================================================
@@ -423,6 +427,7 @@ ${BOLD}COMMANDS:${RESET}
     init                    Initialize sync-shuttle directory structure
     push                    Push files TO a remote server
     pull                    Pull files FROM a remote server
+    relay                   Relay files between servers (via local)
     list <servers|files>    List servers or files in a server's directory
     status                  Show sync status and recent operations
     config <subcommand>     Manage server configuration
@@ -437,6 +442,8 @@ ${BOLD}CONFIG SUBCOMMANDS:${RESET}
 ${BOLD}OPTIONS:${RESET}
     -s, --server <id>       Target server ID (required for push/pull)
     -S, --source <path>     Source file or directory to push
+    -F, --from <id>         Source server for relay
+    -T, --to <id>           Destination server for relay
     -n, --dry-run           Preview operations without executing
     -f, --force             Allow overwrites (prompts for confirmation)
     -v, --verbose           Verbose output
@@ -459,6 +466,10 @@ ${BOLD}EXAMPLES:${RESET}
     # Pull from a server
     $SCRIPT_NAME pull -s myserver --dry-run
     $SCRIPT_NAME pull -s myserver
+
+    # Relay files from one server to another
+    $SCRIPT_NAME relay --from serverA --to serverB --dry-run
+    $SCRIPT_NAME relay --from serverA --to serverB
 
 ${BOLD}SAFETY:${RESET}
     • All operations are sandboxed to ~/.sync-shuttle/
@@ -485,7 +496,7 @@ parse_arguments() {
 
     # First argument should be the command
     case "${1:-}" in
-        init|push|pull|list|status|config|tui|help|--help|-h)
+        init|push|pull|list|status|config|relay|tui|help|--help|-h)
             ACTION="${1}"
             shift
             ;;
@@ -554,6 +565,22 @@ parse_arguments() {
             --s3-archive)
                 S3_ARCHIVE="true"
                 shift
+                ;;
+            -F|--from)
+                FROM_SERVER="${2:-}"
+                if [[ -z "$FROM_SERVER" ]]; then
+                    log_error "--from requires a server ID argument"
+                    exit 2
+                fi
+                shift 2
+                ;;
+            -T|--to)
+                TO_SERVER="${2:-}"
+                if [[ -z "$TO_SERVER" ]]; then
+                    log_error "--to requires a server ID argument"
+                    exit 2
+                fi
+                shift 2
                 ;;
             servers|files)
                 # Subcommand for list
@@ -737,11 +764,32 @@ dispatch_action() {
         tui)
             action_tui
             ;;
+        relay)
+            validate_relay_servers_required
+            action_relay
+            ;;
         *)
             log_error "Unknown action: $ACTION"
             exit 2
             ;;
     esac
+}
+
+validate_relay_servers_required() {
+    if [[ -z "$FROM_SERVER" ]]; then
+        log_error "Source server is required for relay operation"
+        echo "Use: $SCRIPT_NAME relay --from <server_id> --to <server_id>"
+        exit 2
+    fi
+    if [[ -z "$TO_SERVER" ]]; then
+        log_error "Destination server is required for relay operation"
+        echo "Use: $SCRIPT_NAME relay --from <server_id> --to <server_id>"
+        exit 2
+    fi
+    if [[ "$FROM_SERVER" == "$TO_SERVER" ]]; then
+        log_error "Source and destination servers cannot be the same"
+        exit 2
+    fi
 }
 
 validate_server_required() {
@@ -1058,6 +1106,157 @@ action_pull() {
         "$timestamp_start" "$timestamp_end" "SUCCESS"
     
     log_success "Pull operation completed [${OPERATION_UUID}]"
+}
+
+#===============================================================================
+# ACTION: RELAY
+# Forward files from one server to another via local
+#===============================================================================
+action_relay() {
+    OPERATION_UUID=$(generate_uuid)
+    local timestamp_start
+    timestamp_start=$(get_iso_timestamp)
+
+    log_info "Starting RELAY operation [${OPERATION_UUID}]"
+    log_info "From: ${FROM_SERVER} -> To: ${TO_SERVER}"
+
+    # Run preflight checks for both servers
+    if ! preflight_relay "$FROM_SERVER" "$TO_SERVER"; then
+        log_error "Preflight checks failed for relay"
+        exit 4
+    fi
+
+    # Phase 1: Pull from source server
+    log_header "Phase 1: Pulling from ${FROM_SERVER}"
+
+    local inbox_dir="${INBOX_DIR}/${FROM_SERVER}"
+    mkdir -p "$inbox_dir"
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY-RUN] Would pull from: ${FROM_SERVER}"
+        perform_rsync_pull "$FROM_SERVER" "$inbox_dir" "--dry-run"
+    else
+        perform_rsync_pull "$FROM_SERVER" "$inbox_dir" ""
+    fi
+
+    # Phase 2: Determine files to relay
+    log_header "Phase 2: Identifying files to relay"
+
+    local files_to_relay=()
+    local file_count=0
+
+    if [[ -n "$SOURCE_PATH" ]]; then
+        # Specific file(s) requested
+        local target_file="${inbox_dir}/$(basename "$SOURCE_PATH")"
+        if [[ -e "$target_file" ]]; then
+            files_to_relay+=("$target_file")
+            ((file_count++))
+        else
+            log_warn "Requested file not found in inbox: $SOURCE_PATH"
+        fi
+    else
+        # All files from inbox
+        if [[ -d "$inbox_dir" ]]; then
+            while IFS= read -r -d '' file; do
+                files_to_relay+=("$file")
+                ((file_count++))
+            done < <(find "$inbox_dir" -type f -print0 2>/dev/null)
+        fi
+    fi
+
+    if [[ $file_count -eq 0 ]]; then
+        log_warn "No files to relay from ${FROM_SERVER}"
+        log_info "Hint: Ensure files are shared in outbox/global/ or outbox/${HOSTNAME}/ on ${FROM_SERVER}"
+        return 0
+    fi
+
+    log_info "Found $file_count file(s) to relay"
+
+    # Phase 3: Push to destination server
+    log_header "Phase 3: Pushing to ${TO_SERVER}"
+
+    # Load destination server config
+    local to_config
+    to_config=$(get_server_config "$TO_SERVER")
+    eval "$to_config"
+
+    # Validate remote_base
+    if ! validate_remote_base "$server_remote_base" "$TO_SERVER"; then
+        log_error "Invalid remote_base for $TO_SERVER"
+        exit 4
+    fi
+
+    local push_count=0
+    local push_failed=0
+
+    for file in "${files_to_relay[@]}"; do
+        local filename
+        filename=$(basename "$file")
+        log_info "Relaying: $filename"
+
+        if [[ "$DRY_RUN" == "true" ]]; then
+            log_info "[DRY-RUN] Would push: $filename -> ${TO_SERVER}"
+            ((push_count++))
+        else
+            # Create staging directory
+            local staging_dir="${REMOTE_DIR}/${TO_SERVER}/relay-${OPERATION_UUID}"
+            mkdir -p "$staging_dir"
+
+            # Copy file to staging
+            cp -r "$file" "$staging_dir/"
+
+            # Temporarily set SERVER_ID for sync_to_remote
+            local original_server_id="$SERVER_ID"
+            SERVER_ID="$TO_SERVER"
+
+            # Sync to remote
+            if sync_to_remote "$TO_SERVER" "$staging_dir"; then
+                ((push_count++))
+                log_success "Relayed: $filename"
+            else
+                ((push_failed++))
+                log_error "Failed to relay: $filename"
+            fi
+
+            # Restore SERVER_ID
+            SERVER_ID="$original_server_id"
+
+            # Cleanup staging
+            rm -rf "$staging_dir"
+        fi
+    done
+
+    # Summary
+    local timestamp_end
+    timestamp_end=$(get_iso_timestamp)
+
+    log_header "Relay Summary"
+    log_info "Source:      ${FROM_SERVER}"
+    log_info "Destination: ${TO_SERVER}"
+    log_info "Files found: ${file_count}"
+    log_info "Relayed:     ${push_count}"
+    if [[ $push_failed -gt 0 ]]; then
+        log_warn "Failed:      ${push_failed}"
+    fi
+
+    # Log the operation
+    local status="SUCCESS"
+    if [[ $push_failed -gt 0 && $push_count -eq 0 ]]; then
+        status="FAILED"
+    elif [[ $push_failed -gt 0 ]]; then
+        status="PARTIAL"
+    fi
+
+    log_operation "$OPERATION_UUID" "relay" "${FROM_SERVER}->${TO_SERVER}" \
+        "${inbox_dir}" "${TO_SERVER}" \
+        "$timestamp_start" "$timestamp_end" "$status"
+
+    if [[ "$status" == "FAILED" ]]; then
+        log_error "Relay operation failed [${OPERATION_UUID}]"
+        exit 5
+    else
+        log_success "Relay operation completed [${OPERATION_UUID}]"
+    fi
 }
 
 #===============================================================================
