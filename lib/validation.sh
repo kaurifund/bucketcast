@@ -436,14 +436,115 @@ preflight_push() {
 #===============================================================================
 preflight_pull() {
     local dest="$1"
-    
+
     log_debug "Running preflight checks for pull..."
-    
+
     # Validate destination is within sandbox
     if ! validate_path_within_sandbox "$dest"; then
         exit 4
     fi
-    
+
     log_debug "Preflight checks passed"
+    return 0
+}
+
+#===============================================================================
+# VALIDATE: Relay parameters
+#===============================================================================
+validate_relay_params() {
+    local from_server="$1"
+    local to_server="$2"
+
+    log_debug "Validating relay parameters..."
+
+    # Validate from_server ID format
+    if ! validate_server_id "$from_server"; then
+        log_error "Invalid source server ID: $from_server"
+        return 1
+    fi
+
+    # Validate to_server ID format
+    if ! validate_server_id "$to_server"; then
+        log_error "Invalid destination server ID: $to_server"
+        return 1
+    fi
+
+    # Check from_server exists in config
+    local from_config
+    if ! from_config=$(get_server_config "$from_server" 2>/dev/null); then
+        log_error "Source server not found or disabled: $from_server"
+        return 1
+    fi
+
+    # Check to_server exists in config
+    local to_config
+    if ! to_config=$(get_server_config "$to_server" 2>/dev/null); then
+        log_error "Destination server not found or disabled: $to_server"
+        return 1
+    fi
+
+    log_debug "Relay parameters validated: $from_server -> $to_server"
+    return 0
+}
+
+#===============================================================================
+# PREFLIGHT: Relay operation checks
+#===============================================================================
+preflight_relay() {
+    local from_server="$1"
+    local to_server="$2"
+
+    log_debug "Running preflight checks for relay..."
+
+    # Validate relay parameters first
+    if ! validate_relay_params "$from_server" "$to_server"; then
+        return 1
+    fi
+
+    # Load and check FROM server config
+    local from_config
+    from_config=$(get_server_config "$from_server")
+    eval "$from_config"
+    local from_host="$server_host"
+    local from_port="$server_port"
+    local from_user="$server_user"
+    local from_identity="${server_identity_file:-}"
+
+    # Build SSH options for from_server
+    local from_ssh_opts="-p ${from_port} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=${SSH_CONNECT_TIMEOUT:-10}"
+    if [[ -n "$from_identity" ]]; then
+        local expanded_key="${from_identity/#\~/$HOME}"
+        if [[ -f "$expanded_key" ]]; then
+            from_ssh_opts+=" -i ${expanded_key}"
+        fi
+    fi
+
+    # Validate SSH to from_server
+    if ! validate_ssh_connection "$from_host" "$from_port" "$from_user" "$from_ssh_opts"; then
+        log_error "Cannot connect to source server: $from_server"
+        return 1
+    fi
+
+    # Load and check TO server config (reset server_* vars)
+    local to_config
+    to_config=$(get_server_config "$to_server")
+    eval "$to_config"
+
+    # Build SSH options for to_server
+    local to_ssh_opts="-p ${server_port} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=${SSH_CONNECT_TIMEOUT:-10}"
+    if [[ -n "${server_identity_file:-}" ]]; then
+        local expanded_key="${server_identity_file/#\~/$HOME}"
+        if [[ -f "$expanded_key" ]]; then
+            to_ssh_opts+=" -i ${expanded_key}"
+        fi
+    fi
+
+    # Validate SSH to to_server
+    if ! validate_ssh_connection "$server_host" "$server_port" "$server_user" "$to_ssh_opts"; then
+        log_error "Cannot connect to destination server: $to_server"
+        return 1
+    fi
+
+    log_debug "Preflight checks passed for relay: $from_server -> $to_server"
     return 0
 }

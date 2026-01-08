@@ -31,16 +31,26 @@ safety over convenience, ensuring files are never accidentally deleted or overwr
 ### 1. Safe File Transfer
 - Push files TO remote servers
 - Pull files FROM remote servers
+- Relay files between servers via local
 - Configurable server profiles
 - No overwrites without `--force` flag
 
-### 2. Sandboxed Operations
+### 2. Multi-Server Relay
+- Forward files from one server to another via local hub
+- Maintains hub-and-spoke model (servers don't need direct access)
+- Single command: `relay --from <source> --to <dest>`
+- Supports dry-run, specific file selection (`-S`), and global filtering (`--global`)
+- Multiple `-S` flags supported for selecting multiple files
+- `--global` flag filters to only relay files from global outbox
+- Three-phase workflow: Pull → Identify → Push
+
+### 3. Sandboxed Operations
 - All files stored in `~/.sync-shuttle/`
 - Structure: `~/.sync-shuttle/remote/<server_id>/files/`
 - Local staging: `~/.sync-shuttle/local/outbox/`
 - Incoming files: `~/.sync-shuttle/local/inbox/`
 
-### 3. Comprehensive Logging
+### 4. Comprehensive Logging
 - UUID per operation
 - Timestamps (ISO 8601)
 - Source/destination paths
@@ -48,21 +58,22 @@ safety over convenience, ensuring files are never accidentally deleted or overwr
 - Success/failure status
 - Structured JSON logs
 
-### 4. CLI Interface
+### 5. CLI Interface
 - `--dry-run`: Preview without executing
 - `--force`: Allow overwrites (with confirmation)
 - `--server <id>`: Target specific server
-- `--direction <push|pull>`: Transfer direction
+- `--from <id>`: Source server for relay
+- `--to <id>`: Destination server for relay
 - `--verbose`: Detailed output
 - `--quiet`: Minimal output
 
-### 5. Optional TUI
+### 6. Optional TUI
 - Interactive server selection
 - Visual file browser
 - Transfer progress display
 - Log viewer
 
-### 6. Optional S3 Integration
+### 7. Optional S3 Integration
 - Archive completed transfers
 - Use as intermediate storage
 - Configurable retention
