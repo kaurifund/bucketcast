@@ -23,7 +23,9 @@ set -o pipefail
 # CONFIGURATION
 #===============================================================================
 readonly REPO_URL="${SYNC_SHUTTLE_REPO:-https://github.com/kaurifund/bucketcast}"
-readonly BRANCH="${SYNC_SHUTTLE_BRANCH:-main}"
+# TODO: Uncomment below and delete feature branch line when merging to main
+#readonly BRANCH="${SYNC_SHUTTLE_BRANCH:-main}"
+readonly BRANCH="${SYNC_SHUTTLE_BRANCH:-feature/outbox-inbox-symmetry}"
 readonly INSTALL_DIR="${SYNC_SHUTTLE_DIR:-$HOME/.local/share/sync-shuttle}"
 readonly BIN_DIR="${HOME}/.local/bin"
 readonly NO_RC="${SYNC_SHUTTLE_NO_RC:-false}"
@@ -207,6 +209,16 @@ print_completion() {
     echo ""
     echo -e "${BOLD}Documentation:${RESET} ${INSTALL_DIR}/README.md"
     echo ""
+
+    # Warn if not on main branch
+    if [[ "$BRANCH" != "main" ]]; then
+        echo -e "${YELLOW}════════════════════════════════════════════════════════════${RESET}"
+        echo -e "${YELLOW}${BOLD}WARNING: You installed from branch '${BRANCH}'${RESET}"
+        echo -e "${YELLOW}This is not the stable main branch. For production use:${RESET}"
+        echo -e "${YELLOW}  curl -fsSL https://raw.githubusercontent.com/kaurifund/bucketcast/main/install.sh | bash${RESET}"
+        echo -e "${YELLOW}════════════════════════════════════════════════════════════${RESET}"
+        echo ""
+    fi
 }
 
 #===============================================================================

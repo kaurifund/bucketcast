@@ -10,6 +10,16 @@ curl -fsSL https://raw.githubusercontent.com/kaurifund/bucketcast/main/install.s
 
 That's it. This installs to `~/.local/share/sync-shuttle/`, adds it to your PATH, and sets up everything including the TUI.
 
+### Install from a branch
+
+To test a feature branch before it's merged:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kaurifund/bucketcast/BRANCH_NAME/install.sh | bash
+```
+
+Replace `BRANCH_NAME` with the branch (e.g., `feature/outbox-inbox-symmetry`).
+
 ---
 
 Sync Shuttle is a command-line tool for safely transferring files between your home computer and remote servers. It prioritizes safety and auditability over speed, ensuring files are never accidentally deleted or overwritten.
@@ -67,7 +77,10 @@ After initialization, Sync Shuttle creates:
 │       └── files/           # Files synced with this server
 ├── local/
 │   ├── inbox/               # Files received from remotes
-│   └── outbox/              # Files staged for sending
+│   │   └── <server_id>/     # Per-server incoming files
+│   └── outbox/              # Files shared with remotes
+│       ├── global/          # Available to all servers
+│       └── <server_id>/     # Server-specific shares
 ├── logs/
 │   ├── sync.log             # Human-readable log
 │   └── sync.jsonl           # JSON Lines log
@@ -84,6 +97,7 @@ After initialization, Sync Shuttle creates:
 | `init` | Initialize directory structure |
 | `push` | Push files TO a remote server |
 | `pull` | Pull files FROM a remote server |
+| `share` | Share files via outbox (for others to pull) |
 | `list servers` | List configured servers |
 | `list files` | List files for a server |
 | `status` | Show sync status |
@@ -100,6 +114,9 @@ After initialization, Sync Shuttle creates:
 | `-v, --verbose` | Verbose output |
 | `-q, --quiet` | Minimal output |
 | `--s3-archive` | Archive to S3 after sync |
+| `--global` | Share with all servers (share command) |
+| `--list` | List shared files (share command) |
+| `--remove` | Remove from share (share command) |
 
 ### Examples
 
@@ -121,6 +138,18 @@ sync-shuttle.sh push -s myserver -S ~/updated.txt --force
 
 # With S3 archival
 sync-shuttle.sh push -s myserver -S ~/backup/ --s3-archive
+
+# Share a file globally (all servers can pull)
+sync-shuttle share --global -S ~/shared-doc.pdf
+
+# Share with a specific server
+sync-shuttle share -s myserver -S ~/for-myserver.txt
+
+# List all shared files
+sync-shuttle share --list
+
+# Remove a file from global share
+sync-shuttle share --global --remove -S shared-doc.pdf
 ```
 
 ## Configuration
