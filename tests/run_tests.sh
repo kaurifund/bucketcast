@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #===============================================================================
-# SYNC SHUTTLE - TEST RUNNER
+# BUCKETCAST - TEST RUNNER
 #===============================================================================
 # Main entry point for running all tests.
 #
@@ -32,7 +32,7 @@ set -o pipefail
 #===============================================================================
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-readonly TEST_TMP_BASE="/tmp/sync-shuttle-tests"
+readonly TEST_TMP_BASE="/tmp/bucketcast-tests"
 readonly TEST_TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 readonly TEST_TMP_DIR="${TEST_TMP_BASE}/${TEST_TIMESTAMP}"
 
@@ -72,14 +72,14 @@ source "${SCRIPT_DIR}/helpers/mocks.sh"
 # Setup test environment (called before each test file)
 setup_test_env() {
     export TEST_DIR="${TEST_TMP_DIR}/$$_${RANDOM}"
-    export SYNC_BASE_DIR="${TEST_DIR}/sync-shuttle"
+    export SYNC_BASE_DIR="${TEST_DIR}/bucketcast"
     export HOME="${TEST_DIR}/home"
     
     mkdir -p "$TEST_DIR" "$SYNC_BASE_DIR" "$HOME"
     
     # Copy project files to test environment
     cp -r "${PROJECT_ROOT}/lib" "${TEST_DIR}/"
-    cp "${PROJECT_ROOT}/sync-shuttle.sh" "${TEST_DIR}/"
+    cp "${PROJECT_ROOT}/bucketcast.sh" "${TEST_DIR}/"
     
     # Source libraries for unit testing
     export SCRIPT_DIR="${TEST_DIR}"
@@ -259,7 +259,7 @@ main() {
     
     echo ""
     echo -e "${BOLD}╔═══════════════════════════════════════════════════════════╗${RESET}"
-    echo -e "${BOLD}║           SYNC SHUTTLE TEST SUITE                         ║${RESET}"
+    echo -e "${BOLD}║           BUCKETCAST TEST SUITE                         ║${RESET}"
     echo -e "${BOLD}╚═══════════════════════════════════════════════════════════╝${RESET}"
     
     # Create temp directory

@@ -1,4 +1,4 @@
-# SYNC-SHUTTLE LLM.TXT
+# BUCKETCAST LLM.TXT
 # Version: 1.1.0
 # Purpose: Complete repository context for AI agents and LLM systems
 # Format: Line-oriented, grepable, topic-oriented knowledge blocks
@@ -59,7 +59,7 @@ SECTION_TYPE :: AUTO
 
 TOC_LINE :: 001 - [GREP_MANUAL] - Query patterns for v1.1.0
 TOC_LINE :: 050 - [TABLE_OF_CONTENTS] - This navigation
-TOC_LINE :: 080 - [PROJECT_IDENTITY] - What sync-shuttle is
+TOC_LINE :: 080 - [PROJECT_IDENTITY] - What bucketcast is
 TOC_LINE :: 130 - [ARCHITECTURE_OVERVIEW] - System structure
 TOC_LINE :: 200 - [FILE_MANIFEST] - All files with summaries
 TOC_LINE :: 350 - [FUNCTION_REFERENCE] - Functions with topic blocks
@@ -82,7 +82,7 @@ LINE_COUNT :: ~1950 lines
 ================================================================================
 SECTION_TYPE :: MANUAL
 
-PROJECT_NAME :: sync-shuttle
+PROJECT_NAME :: bucketcast
 PROJECT_TYPE :: CLI file synchronization tool
 PROJECT_LANGUAGE :: Bash 4.0+ with Python 3.8+ TUI
 PROJECT_LICENSE :: MIT
@@ -121,10 +121,10 @@ ARCH_PRINCIPLE :: Fail-fast with descriptive error messages
 ARCH_PRINCIPLE :: Defense in depth for security
 
 TOPIC :: RUNTIME_STRUCTURE
-TOPIC_DESCRIPTION :: Directory layout for sync-shuttle runtime data
-TOPIC_FILES :: ~/.sync-shuttle/*
+TOPIC_DESCRIPTION :: Directory layout for bucketcast runtime data
+TOPIC_FILES :: ~/.bucketcast/*
 
-RUNTIME_DIR :: ~/.sync-shuttle/ | Root for all sync-shuttle data | CREATED_BY:init
+RUNTIME_DIR :: ~/.bucketcast/ | Root for all bucketcast data | CREATED_BY:init
 DETAIL:RUNTIME_DIR :: SUBDIR config/ - user configuration files
 DETAIL:RUNTIME_DIR :: SUBDIR remote/<server_id>/files/ - synced files by server
 DETAIL:RUNTIME_DIR :: SUBDIR local/inbox/ - files received from remote
@@ -133,10 +133,10 @@ DETAIL:RUNTIME_DIR :: SUBDIR logs/ - sync.log (human) and sync.jsonl (machine)
 DETAIL:RUNTIME_DIR :: SUBDIR archive/ - versioned backups before overwrites
 DETAIL:RUNTIME_DIR :: SUBDIR tmp/ - temporary staging and lock files
 
-LAYER :: CLI (sync-shuttle.sh) | Argument parsing; user interaction; orchestration
+LAYER :: CLI (bucketcast.sh) | Argument parsing; user interaction; orchestration
 LAYER :: Library (lib/*.sh) | Pure functions; reusable logic; no direct I/O
 LAYER :: Config (config/) | User settings; server definitions
-LAYER :: Data (~/.sync-shuttle/) | Runtime directories; logs; archives
+LAYER :: Data (~/.bucketcast/) | Runtime directories; logs; archives
 LAYER :: TUI (tui/) | Optional Python interface; async operations
 
 ================================================================================
@@ -146,19 +146,19 @@ SECTION_TYPE :: AUTO
 
 TOPIC :: CORE_EXECUTABLES
 TOPIC_DESCRIPTION :: Main scripts that users invoke directly
-TOPIC_FILES :: sync-shuttle.sh; install.sh
+TOPIC_FILES :: bucketcast.sh; install.sh
 
-FILE :: sync-shuttle.sh | Main CLI executable; orchestrates all operations | LOC:./sync-shuttle.sh:1139 | CONTAINS:argument_parsing,action_dispatch,init,push,pull,list,status | EXPORTS:SYNC_BASE_DIR,CONFIG_DIR,LOGS_DIR
-DETAIL:sync-shuttle.sh :: LINES 1-310 - embedded man-style documentation
-DETAIL:sync-shuttle.sh :: LINES 310-500 - global variables and library sourcing
-DETAIL:sync-shuttle.sh :: LINES 500-700 - argument parsing
-DETAIL:sync-shuttle.sh :: LINES 700-1139 - action handlers (do_init, do_push, etc.)
-DETAIL:sync-shuttle.sh :: DEPENDS lib/core.sh; lib/logging.sh; lib/validation.sh; lib/transfer.sh; lib/s3.sh
+FILE :: bucketcast.sh | Main CLI executable; orchestrates all operations | LOC:./bucketcast.sh:1139 | CONTAINS:argument_parsing,action_dispatch,init,push,pull,list,status | EXPORTS:SYNC_BASE_DIR,CONFIG_DIR,LOGS_DIR
+DETAIL:bucketcast.sh :: LINES 1-310 - embedded man-style documentation
+DETAIL:bucketcast.sh :: LINES 310-500 - global variables and library sourcing
+DETAIL:bucketcast.sh :: LINES 500-700 - argument parsing
+DETAIL:bucketcast.sh :: LINES 700-1139 - action handlers (do_init, do_push, etc.)
+DETAIL:bucketcast.sh :: DEPENDS lib/core.sh; lib/logging.sh; lib/validation.sh; lib/transfer.sh; lib/s3.sh
 
 FILE :: install.sh | Curl-able installer script | LOC:./install.sh:225 | CONTAINS:download,extract,setup_paths,create_wrapper | EXPORTS:none
 DETAIL:install.sh :: USAGE curl -fsSL URL/install.sh | bash
-DETAIL:install.sh :: CREATES ~/.local/share/sync-shuttle/ (installation)
-DETAIL:install.sh :: CREATES ~/.local/bin/sync-shuttle (wrapper script)
+DETAIL:install.sh :: CREATES ~/.local/share/bucketcast/ (installation)
+DETAIL:install.sh :: CREATES ~/.local/bin/bucketcast (wrapper script)
 DETAIL:install.sh :: MODIFIES ~/.bashrc or ~/.zshrc (PATH addition)
 
 TOPIC :: LIBRARY_MODULES
@@ -188,17 +188,17 @@ TOPIC :: CONFIGURATION_FILES
 TOPIC_DESCRIPTION :: Example configuration templates
 TOPIC_FILES :: config/*.example
 
-FILE :: config/sync-shuttle.conf.example | Main configuration template | LOC:./config/sync-shuttle.conf.example:111 | CONTAINS:path_settings,ssh_defaults,rsync_options,logging_config,s3_settings
+FILE :: config/bucketcast.conf.example | Main configuration template | LOC:./config/bucketcast.conf.example:111 | CONTAINS:path_settings,ssh_defaults,rsync_options,logging_config,s3_settings
 FILE :: config/servers.conf.example | Server definition template | LOC:./config/servers.conf.example:110 | CONTAINS:server_declarations,identity_file_support
-FILE :: config/.syncshuttlerc.example | User-level defaults | LOC:./config/.syncshuttlerc.example:45 | CONTAINS:ssh_default_identity,behavior_flags
+FILE :: config/.bucketcastrc.example | User-level defaults | LOC:./config/.bucketcastrc.example:45 | CONTAINS:ssh_default_identity,behavior_flags
 
 TOPIC :: TUI_COMPONENTS
 TOPIC_DESCRIPTION :: Python terminal user interface
-TOPIC_FILES :: tui/sync_tui.py; tui/requirements.txt
+TOPIC_FILES :: tui/bucketcast_tui.py; tui/requirements.txt
 
-FILE :: tui/sync_tui.py | Terminal user interface | LOC:./tui/sync_tui.py:666 | CONTAINS:ServerConfig,SyncOperation,MainScreen,PushScreen,PullScreen,FileBrowser | EXPORTS:main
-DETAIL:tui/sync_tui.py :: KEYBINDS q=quit; p=push; l=pull; r=refresh
-DETAIL:tui/sync_tui.py :: REQUIRES textual>=0.40.0; rich>=13.0.0
+FILE :: tui/bucketcast_tui.py | Terminal user interface | LOC:./tui/bucketcast_tui.py:666 | CONTAINS:ServerConfig,SyncOperation,MainScreen,PushScreen,PullScreen,FileBrowser | EXPORTS:main
+DETAIL:tui/bucketcast_tui.py :: KEYBINDS q=quit; p=push; l=pull; r=refresh
+DETAIL:tui/bucketcast_tui.py :: REQUIRES textual>=0.40.0; rich>=13.0.0
 
 ================================================================================
 [FUNCTION_REFERENCE]
@@ -315,12 +315,12 @@ TOPIC :: MAIN_COMMANDS
 TOPIC_DESCRIPTION :: Primary CLI commands
 TOPIC_RELATED :: EXIT_CODES
 
-CMD :: sync-shuttle init | Initialize sync-shuttle directory structure | CREATES:~/.sync-shuttle/* | IDEMPOTENT:yes | EXIT:0_success,1_failure
-DETAIL:init :: CREATES ~/.sync-shuttle/ and all subdirectories
+CMD :: bucketcast init | Initialize bucketcast directory structure | CREATES:~/.bucketcast/* | IDEMPOTENT:yes | EXIT:0_success,1_failure
+DETAIL:init :: CREATES ~/.bucketcast/ and all subdirectories
 DETAIL:init :: CREATES default configuration files from examples
 DETAIL:init :: SAFE to run multiple times - skips existing
 
-CMD :: sync-shuttle push --server <id> --source <path> | Push files to remote server | REQUIRES:--server,--source | EXIT:0-8
+CMD :: bucketcast push --server <id> --source <path> | Push files to remote server | REQUIRES:--server,--source | EXIT:0-8
 DETAIL:push :: REQUIRED --server <id> - target server from servers.conf
 DETAIL:push :: REQUIRED --source <path> - local file or directory
 DETAIL:push :: OPTIONAL --dry-run - simulate without transferring
@@ -330,21 +330,21 @@ DETAIL:push :: OPTIONAL --quiet - minimal output
 DETAIL:push :: OPTIONAL --s3-archive - archive to S3 after transfer
 DETAIL:push :: FLOW validate -> preflight -> stage_local -> rsync_remote -> log
 
-CMD :: sync-shuttle pull --server <id> | Pull files from remote server | REQUIRES:--server | EXIT:0-8
+CMD :: bucketcast pull --server <id> | Pull files from remote server | REQUIRES:--server | EXIT:0-8
 DETAIL:pull :: REQUIRED --server <id> - source server from servers.conf
 DETAIL:pull :: OPTIONAL same as push (--dry-run, --force, etc.)
 DETAIL:pull :: FLOW validate -> preflight -> rsync_from_remote -> stage_local -> log
 
-CMD :: sync-shuttle list servers | Display all configured servers | EXIT:0_success,1_no_servers
+CMD :: bucketcast list servers | Display all configured servers | EXIT:0_success,1_no_servers
 DETAIL:list_servers :: OUTPUT table of server id; name; host; enabled status
 
-CMD :: sync-shuttle list files --server <id> | Display synced files for server | REQUIRES:--server | EXIT:0_success,1_error
+CMD :: bucketcast list files --server <id> | Display synced files for server | REQUIRES:--server | EXIT:0_success,1_error
 DETAIL:list_files :: OUTPUT tree view of SYNC_BASE_DIR/remote/{server_id}/files/
 
-CMD :: sync-shuttle status | Display overall sync-shuttle status | EXIT:0_always
+CMD :: bucketcast status | Display overall bucketcast status | EXIT:0_always
 DETAIL:status :: OUTPUT directory sizes; last operations; server count
 
-CMD :: sync-shuttle tui | Launch terminal user interface | REQUIRES:python3,textual,rich | EXIT:0_clean,1_error
+CMD :: bucketcast tui | Launch terminal user interface | REQUIRES:python3,textual,rich | EXIT:0_clean,1_error
 DETAIL:tui :: KEYBINDS q=quit; p=push; l=pull; r=refresh
 
 TOPIC :: EXIT_CODES
@@ -353,7 +353,7 @@ TOPIC_DESCRIPTION :: Exit code meanings for all commands
 EXIT :: 0 | Success - operation completed normally
 EXIT :: 1 | General error - unspecified failure
 EXIT :: 2 | Invalid arguments - missing required flags; invalid values
-EXIT :: 3 | Not initialized - run sync-shuttle init first
+EXIT :: 3 | Not initialized - run bucketcast init first
 EXIT :: 4 | Server not found - server_id not in servers.conf or disabled
 EXIT :: 5 | Transfer failed - rsync/SSH error during transfer
 EXIT :: 6 | Collision - destination file exists; use --force
@@ -372,7 +372,7 @@ DETAIL:ServerConfig :: FIELD host (string) - hostname or IP address; REQUIRED
 DETAIL:ServerConfig :: FIELD port (integer) - SSH port; default 22
 DETAIL:ServerConfig :: FIELD user (string) - SSH username; REQUIRED
 DETAIL:ServerConfig :: FIELD identity_file (string) - path to SSH key; optional; supports ~
-DETAIL:ServerConfig :: FIELD remote_base (string) - remote sync-shuttle directory path
+DETAIL:ServerConfig :: FIELD remote_base (string) - remote bucketcast directory path
 DETAIL:ServerConfig :: FIELD enabled (boolean) - true/false
 DETAIL:ServerConfig :: FIELD s3_backup (boolean) - archive to S3 after sync
 DETAIL:ServerConfig :: SYNTAX declare -A server_<id>=([name]="..." [host]="..." ...)
@@ -393,7 +393,7 @@ DETAIL:LogEntry :: FIELD rsync_exit_code (integer)
 ================================================================================
 SECTION_TYPE :: HYBRID
 
-CONFIG :: SYNC_BASE_DIR | Root directory for all sync-shuttle data | DEFAULT:~/.sync-shuttle
+CONFIG :: SYNC_BASE_DIR | Root directory for all bucketcast data | DEFAULT:~/.bucketcast
 CONFIG :: LOG_LEVEL | Minimum level for log output | DEFAULT:INFO | VALUES:DEBUG|INFO|WARN|ERROR
 CONFIG :: MAX_TRANSFER_SIZE | Maximum allowed single transfer size | DEFAULT:10G | FORMAT:number with K/M/G
 CONFIG :: SSH_CONNECT_TIMEOUT | Seconds to wait for SSH connection | DEFAULT:10
@@ -409,7 +409,7 @@ CONFIG :: ARCHIVE_RETENTION_DAYS | Days to keep local archives | DEFAULT:30
 SECTION_TYPE :: MANUAL
 
 FLOW :: PUSH_OPERATION | User invokes push; files transferred to remote
-DETAIL:PUSH_OPERATION :: STEP 1 - User: sync-shuttle push --server <id> --source <path>
+DETAIL:PUSH_OPERATION :: STEP 1 - User: bucketcast push --server <id> --source <path>
 DETAIL:PUSH_OPERATION :: STEP 2 - Parse arguments; set DRY_RUN, FORCE, VERBOSE flags
 DETAIL:PUSH_OPERATION :: STEP 3 - validate_environment() - check bash, tools, directories
 DETAIL:PUSH_OPERATION :: STEP 4 - validate_server_id() - format check
@@ -436,7 +436,7 @@ DETAIL:PULL_OPERATION :: STEP 11-14 - Same logging and cleanup as push
 SECTION_TYPE :: MANUAL
 
 TOPIC :: SAFETY_FEATURES
-TOPIC_DESCRIPTION :: All security and safety mechanisms in sync-shuttle
+TOPIC_DESCRIPTION :: All security and safety mechanisms in bucketcast
 TOPIC_RELATED :: VALIDATION_FUNCTIONS
 
 SAFETY :: NO_DELETE_GUARANTEE | rsync never invoked with --delete flag | LOC:lib/transfer.sh:build_rsync_options | ENFORCEMENT:hardcoded
@@ -478,22 +478,22 @@ DETAIL:NO_BACKGROUND_OPERATIONS :: RATIONALE user always knows when files move
 ================================================================================
 SECTION_TYPE :: MANUAL
 
-FAQ :: What is sync-shuttle?
+FAQ :: What is bucketcast?
 FAQ_ANSWER :: CLI file synchronization tool wrapping rsync with safety guardrails | NEVER deletes files | NEVER overwrites without consent | Full audit trail
 
 FAQ :: How do I install?
-FAQ_ANSWER :: curl -fsSL URL/install.sh | bash OR git clone && ./sync-shuttle.sh init | Creates ~/.sync-shuttle/ structure
+FAQ_ANSWER :: curl -fsSL URL/install.sh | bash OR git clone && ./bucketcast.sh init | Creates ~/.bucketcast/ structure
 
 FAQ :: How do I add a server?
-FAQ_ANSWER :: Edit ~/.sync-shuttle/config/servers.conf | Add declare -A server_<id>=([host]="..." [user]="..." [remote_base]="..." [enabled]="true") | Minimum: host, user, remote_base, enabled
+FAQ_ANSWER :: Edit ~/.bucketcast/config/servers.conf | Add declare -A server_<id>=([host]="..." [user]="..." [remote_base]="..." [enabled]="true") | Minimum: host, user, remote_base, enabled
 
 FAQ :: How do I push files?
-FAQ_ANSWER :: sync-shuttle push --server <id> --source <path> | Always test with --dry-run first | Files go to remote:remote_base/local/inbox/hostname/
+FAQ_ANSWER :: bucketcast push --server <id> --source <path> | Always test with --dry-run first | Files go to remote:remote_base/local/inbox/hostname/
 
 FAQ :: How do I pull files?
-FAQ_ANSWER :: sync-shuttle pull --server <id> | Files arrive at ~/.sync-shuttle/local/inbox/<server_id>/
+FAQ_ANSWER :: bucketcast pull --server <id> | Files arrive at ~/.bucketcast/local/inbox/<server_id>/
 
-FAQ :: Can sync-shuttle delete remote files?
+FAQ :: Can bucketcast delete remote files?
 FAQ_ANSWER :: NO - core safety guarantee | rsync NEVER invoked with --delete | Use ssh directly for deletions
 
 FAQ :: What does --force do?
@@ -506,7 +506,7 @@ FAQ :: How do I use SSH keys?
 FAQ_ANSWER :: In servers.conf: [identity_file]="~/.ssh/mykey.pem" | Supports ~ expansion | Key must be readable, permissions 600/400
 
 FAQ :: Where are logs?
-FAQ_ANSWER :: Human: ~/.sync-shuttle/logs/sync.log | Machine: ~/.sync-shuttle/logs/sync.jsonl | Query: jq '.status' sync.jsonl
+FAQ_ANSWER :: Human: ~/.bucketcast/logs/sync.log | Machine: ~/.bucketcast/logs/sync.jsonl | Query: jq '.status' sync.jsonl
 
 FAQ :: What are the exit codes?
 FAQ_ANSWER :: 0=success | 1=general error | 2=invalid args | 3=not init | 4=server not found | 5=transfer failed | 6=collision | 7=validation failed | 8=dependency missing
@@ -515,7 +515,7 @@ FAQ :: How do I run tests?
 FAQ_ANSWER :: ./tests/run_tests.sh [unit|integration|e2e] | All tests: ./tests/run_tests.sh
 
 FAQ :: Where is the entry point?
-FAQ_ANSWER :: sync-shuttle.sh | Line ~400: library sourcing | Line ~500: argument parsing | Line ~700: action dispatch
+FAQ_ANSWER :: bucketcast.sh | Line ~400: library sourcing | Line ~500: argument parsing | Line ~700: action dispatch
 
 FAQ :: How do I add a new command?
 FAQ_ANSWER :: 1. Add case in dispatch (~line 700) | 2. Create do_<action> function | 3. Add to help text | 4. Add tests | 5. Update llm.txt
@@ -548,7 +548,7 @@ EDGE :: CTRL+C during operation | Trap catches; cleanup runs | LOGGED:partial | 
 SECTION_TYPE :: MANUAL
 
 MOD :: Adding a new CLI flag
-DETAIL:new_flag :: STEP 1 - Edit sync-shuttle.sh argument parsing (~line 500)
+DETAIL:new_flag :: STEP 1 - Edit bucketcast.sh argument parsing (~line 500)
 DETAIL:new_flag :: STEP 2 - Add case: --newflag) NEWFLAG="true"; shift ;;
 DETAIL:new_flag :: STEP 3 - Initialize: NEWFLAG="${NEWFLAG:-false}"
 DETAIL:new_flag :: STEP 4 - Add to help text (~line 430)

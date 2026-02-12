@@ -38,8 +38,8 @@ create_test_config() {
     local config_dir="${CONFIG_DIR:-$TEST_DIR/config}"
     mkdir -p "$config_dir"
     
-    cat > "${config_dir}/sync-shuttle.conf" << 'EOF'
-SYNC_BASE_DIR="${SYNC_BASE_DIR:-$HOME/.sync-shuttle}"
+    cat > "${config_dir}/bucketcast.conf" << 'EOF'
+SYNC_BASE_DIR="${SYNC_BASE_DIR:-$HOME/.bucketcast}"
 DEFAULT_SSH_PORT=22
 LOG_LEVEL="ERROR"
 S3_ENABLED="false"
@@ -47,7 +47,7 @@ ARCHIVE_RETENTION_DAYS=30
 MAX_TRANSFER_SIZE="10G"
 EOF
     
-    echo "${config_dir}/sync-shuttle.conf"
+    echo "${config_dir}/bucketcast.conf"
 }
 
 # Create a test server configuration
@@ -62,7 +62,7 @@ declare -A server_${server_id}=(
     [host]="localhost"
     [port]="22"
     [user]="testuser"
-    [remote_base]="/tmp/sync-shuttle-test"
+    [remote_base]="/tmp/bucketcast-test"
     [enabled]="true"
     [s3_backup]="false"
 )
@@ -102,7 +102,7 @@ declare -A server_dev=(
     [host]="dev.example.com"
     [port]="22"
     [user]="developer"
-    [remote_base]="/home/developer/.sync-shuttle"
+    [remote_base]="/home/developer/.bucketcast"
     [enabled]="true"
     [s3_backup]="false"
 )
@@ -112,7 +112,7 @@ declare -A server_prod=(
     [host]="prod.example.com"
     [port]="2222"
     [user]="deploy"
-    [remote_base]="/var/sync-shuttle"
+    [remote_base]="/var/bucketcast"
     [enabled]="true"
     [s3_backup]="true"
 )
@@ -163,9 +163,9 @@ create_test_logs() {
     echo "$logs_dir"
 }
 
-# Initialize complete test sync-shuttle directory
-init_test_sync_shuttle() {
-    local base="${SYNC_BASE_DIR:-$TEST_DIR/sync-shuttle}"
+# Initialize complete test bucketcast directory
+init_test_bucketcast() {
+    local base="${SYNC_BASE_DIR:-$TEST_DIR/bucketcast}"
     
     mkdir -p "$base"/{config,remote,local/{inbox,outbox},logs,archive,tmp}
     

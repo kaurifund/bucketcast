@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Sync Shuttle - Terminal User Interface
+Bucketcast - Terminal User Interface
 =======================================
 
 Interactive TUI for managing file synchronization operations.
 Built with Textual for a modern, responsive terminal interface.
 
 Usage:
-    python3 sync_tui.py --base-dir ~/.sync-shuttle --config-dir ~/.sync-shuttle/config
+    python3 bucketcast_tui.py --base-dir ~/.bucketcast --config-dir ~/.bucketcast/config
 """
 
 import argparse
@@ -241,7 +241,7 @@ class FileBrowser(Tree):
 
 
 class StatusPanel(Static):
-    """Status panel showing sync-shuttle state."""
+    """Status panel showing bucketcast state."""
     
     def __init__(self, base_dir: Path, **kwargs):
         super().__init__(**kwargs)
@@ -351,8 +351,8 @@ class MainScreen(Screen):
             self.notify("Select an operation first", severity="warning")
     
     async def run_command(self, args: list[str]) -> None:
-        """Run sync-shuttle command and show output."""
-        script_path = Path(__file__).parent.parent / "sync-shuttle.sh"
+        """Run bucketcast command and show output."""
+        script_path = Path(__file__).parent.parent / "bucketcast.sh"
         
         if not script_path.exists():
             self.notify(f"Script not found: {script_path}", severity="error")
@@ -453,7 +453,7 @@ class PushScreen(Screen):
         if force:
             args.append("--force")
         
-        self.notify(f"Running: sync-shuttle {' '.join(args)}")
+        self.notify(f"Running: bucketcast {' '.join(args)}")
         # In a real implementation, this would run the command
         # For now, just show the command
 
@@ -522,15 +522,15 @@ class PullScreen(Screen):
         if force:
             args.append("--force")
         
-        self.notify(f"Running: sync-shuttle {' '.join(args)}")
+        self.notify(f"Running: bucketcast {' '.join(args)}")
 
 
 # =============================================================================
 # MAIN APPLICATION
 # =============================================================================
 
-class SyncShuttleTUI(App):
-    """Main Sync Shuttle TUI application."""
+class BucketcastTUI(App):
+    """Main Bucketcast TUI application."""
     
     CSS = """
     Screen {
@@ -618,7 +618,7 @@ class SyncShuttleTUI(App):
     }
     """
     
-    TITLE = "Sync Shuttle"
+    TITLE = "Bucketcast"
     SUB_TITLE = "Safe File Synchronization"
     
     def __init__(self, base_dir: Path, config_dir: Path):
@@ -635,12 +635,12 @@ class SyncShuttleTUI(App):
 # =============================================================================
 
 def main():
-    parser = argparse.ArgumentParser(description="Sync Shuttle TUI")
+    parser = argparse.ArgumentParser(description="Bucketcast TUI")
     parser.add_argument(
         "--base-dir",
         type=Path,
-        default=Path.home() / ".sync-shuttle",
-        help="Base directory for sync-shuttle"
+        default=Path.home() / ".bucketcast",
+        help="Base directory for bucketcast"
     )
     parser.add_argument(
         "--config-dir",
@@ -657,10 +657,10 @@ def main():
     
     if not base_dir.exists():
         print(f"Error: Base directory does not exist: {base_dir}")
-        print("Run 'sync-shuttle.sh init' first.")
+        print("Run 'bucketcast.sh init' first.")
         sys.exit(1)
     
-    app = SyncShuttleTUI(base_dir, config_dir)
+    app = BucketcastTUI(base_dir, config_dir)
     app.run()
 
 

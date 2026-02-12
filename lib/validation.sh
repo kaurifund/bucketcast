@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #===============================================================================
-# SYNC SHUTTLE - VALIDATION LIBRARY
+# BUCKETCAST - VALIDATION LIBRARY
 #===============================================================================
 # Provides validation and safety check functions to ensure operations
 # are secure and within expected parameters.
@@ -63,9 +63,9 @@ validate_environment() {
         fi
     done
     
-    # Check sync-shuttle directory exists
+    # Check bucketcast directory exists
     if [[ ! -d "$SYNC_BASE_DIR" ]]; then
-        log_error "Sync Shuttle not initialized"
+        log_error "Bucketcast not initialized"
         echo "Run '$SCRIPT_NAME init' first."
         exit 3
     fi
@@ -113,7 +113,7 @@ validate_path_within_sandbox() {
     }
     
     # Check if path starts with sandbox (must be exact match or inside sandbox/)
-    # Using trailing slash to prevent /home/user/.sync-shuttleFAKE from matching
+    # Using trailing slash to prevent /home/user/.bucketcastFAKE from matching
     if [[ "$resolved_path" != "$resolved_sandbox" && "$resolved_path" != "$resolved_sandbox"/* ]]; then
         log_error "Security violation: Path is outside sandbox"
         log_error "  Path:    $resolved_path"

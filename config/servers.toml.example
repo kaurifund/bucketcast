@@ -1,6 +1,6 @@
-# Sync Shuttle - Server Configuration
+# Bucketcast - Server Configuration
 # ====================================
-# Copy this file to ~/.sync-shuttle/config/servers.toml and edit.
+# Copy this file to ~/.bucketcast/config/servers.toml and edit.
 #
 # Each [servers.ID] section defines a server.
 # ID must be lowercase alphanumeric with dashes (3-32 chars).
@@ -11,7 +11,7 @@ host = "192.168.1.100"           # IP address or hostname
 port = 22                        # SSH port
 user = "myuser"                  # SSH username
 identity_file = "~/.ssh/id_rsa" # SSH key path (.pem, id_rsa, id_ed25519, etc.)
-# remote_base = "/home/myuser/.sync-shuttle"  # Optional: defaults to /home/<user>/.sync-shuttle
+# remote_base = "/home/myuser/.bucketcast"  # Optional: defaults to /home/<user>/.bucketcast
 enabled = false                  # Set to true to activate this server
 s3_backup = false                # Archive synced files to S3
 
@@ -23,7 +23,7 @@ host = "ec2-12-34-56-78.compute-1.amazonaws.com"
 port = 22
 user = "ec2-user"
 identity_file = "~/.ssh/aws-prod.pem"
-remote_base = "/home/ec2-user/.sync-shuttle"
+remote_base = "/home/ec2-user/.bucketcast"
 enabled = false
 s3_backup = true
 
@@ -33,6 +33,6 @@ host = "192.168.1.50"
 port = 22
 user = "admin"
 # identity_file = ""  # Omit to use default SSH key from agent
-remote_base = "/home/admin/.sync-shuttle"
+remote_base = "/home/admin/.bucketcast"
 enabled = false
 s3_backup = false
