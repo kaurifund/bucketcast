@@ -172,15 +172,14 @@ test_e2e_push_requires_source() {
     
     # Add a test server
     cat > "${SYNC_BASE_DIR}/config/servers.toml" << 'EOF'
-declare -A server_test=(
-    [name]="Test Server"
-    [host]="localhost"
-    [port]="22"
-    [user]="nobody"
-    [remote_base]="/tmp"
-    [enabled]="true"
-    [s3_backup]="false"
-)
+[servers.test]
+name = "Test Server"
+host = "localhost"
+port = 22
+user = "nobody"
+remote_base = "/tmp"
+enabled = true
+s3_backup = false
 EOF
     
     # Push without source should fail
@@ -197,15 +196,14 @@ test_e2e_push_validates_source_exists() {
     
     # Add a test server
     cat > "${SYNC_BASE_DIR}/config/servers.toml" << 'EOF'
-declare -A server_test=(
-    [name]="Test Server"
-    [host]="localhost"
-    [port]="22"
-    [user]="nobody"
-    [remote_base]="/tmp"
-    [enabled]="true"
-    [s3_backup]="false"
-)
+[servers.test]
+name = "Test Server"
+host = "localhost"
+port = 22
+user = "nobody"
+remote_base = "/tmp"
+enabled = true
+s3_backup = false
 EOF
     
     # Push with non-existent source should fail
@@ -226,21 +224,20 @@ test_e2e_push_dry_run_makes_no_changes() {
     
     # Add a test server
     cat > "${SYNC_BASE_DIR}/config/servers.toml" << 'EOF'
-declare -A server_test=(
-    [name]="Test Server"
-    [host]="localhost"
-    [port]="22"
-    [user]="nobody"
-    [remote_base]="/tmp/bucketcast-test"
-    [enabled]="true"
-    [s3_backup]="false"
-)
+[servers.test]
+name = "Test Server"
+host = "localhost"
+port = 22
+user = "nobody"
+remote_base = "/home/nobody/.bucketcast"
+enabled = true
+s3_backup = false
 EOF
-    
-    # Dry run (will fail SSH but should show dry-run message)
+
+    # Dry run (will fail SSH but should show dry-run message before that)
     local output
     output=$("$BUCKETCAST" push --server test --source "$test_file" --dry-run 2>&1) || true
-    
+
     assert_contains "$output" "DRY" "Should indicate dry-run mode"
 }
 

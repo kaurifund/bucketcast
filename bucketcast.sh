@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #===============================================================================
 #
-#   ███████╗██╗   ██╗███╗   ██╗ ██████╗    ███████╗██╗  ██╗██╗   ██╗████████╗████████╗██╗     ███████╗
-#   ██╔════╝╚██╗ ██╔╝████╗  ██║██╔════╝    ██╔════╝██║  ██║██║   ██║╚══██╔══╝╚══██╔══╝██║     ██╔════╝
-#   ███████╗ ╚████╔╝ ██╔██╗ ██║██║         ███████╗███████║██║   ██║   ██║      ██║   ██║     █████╗  
-#   ╚════██║  ╚██╔╝  ██║╚██╗██║██║         ╚════██║██╔══██║██║   ██║   ██║      ██║   ██║     ██╔══╝  
-#   ███████║   ██║   ██║ ╚████║╚██████╗    ███████║██║  ██║╚██████╔╝   ██║      ██║   ███████╗███████╗
-#   ╚══════╝   ╚═╝   ╚═╝  ╚═══╝ ╚═════╝    ╚══════╝╚═╝  ╚═╝ ╚═════╝    ╚═╝      ╚═╝   ╚══════╝╚══════╝
+#   ██████╗ ██╗   ██╗ ██████╗██╗  ██╗███████╗████████╗ ██████╗ █████╗ ███████╗████████╗
+#   ██╔══██╗██║   ██║██╔════╝██║ ██╔╝██╔════╝╚══██╔══╝██╔════╝██╔══██╗██╔════╝╚══██╔══╝
+#   ██████╔╝██║   ██║██║     █████╔╝ █████╗     ██║   ██║     ███████║███████╗   ██║
+#   ██╔══██╗██║   ██║██║     ██╔═██╗ ██╔══╝     ██║   ██║     ██╔══██║╚════██║   ██║
+#   ██████╔╝╚██████╔╝╚██████╗██║  ██╗███████╗   ██║   ╚██████╗██║  ██║███████║   ██║
+#   ╚═════╝  ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝   ╚═╝    ╚═════╝╚═╝  ╚═╝╚══════╝   ╚═╝
 #
 #===============================================================================
 # BUCKETCAST - Safe, Idempotent File Synchronization Tool
@@ -139,9 +139,8 @@
 #   │   Executes rsync to pull files from remote.
 #   │   Same flags as push, opposite direction.
 #   │
-#   scp_fallback()
-#       Falls back to scp if rsync unavailable on remote.
-#       Used only when rsync fails with specific error codes.
+#   sync_to_remote()
+#       Syncs local staging directory to remote server via rsync over SSH.
 #
 #-------------------------------------------------------------------------------
 # LOGGING FUNCTIONS:
@@ -316,9 +315,14 @@ set -o pipefail  # Exit on pipe failure
 #===============================================================================
 # SCRIPT METADATA
 #===============================================================================
-readonly SCRIPT_NAME="bucketcast"
-readonly SCRIPT_VERSION="1.2.0"
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -z "${SCRIPT_NAME+x}" ]]; then
+    readonly SCRIPT_NAME="bucketcast"
+fi
+if [[ -z "${SCRIPT_VERSION+x}" ]]; then
+    readonly SCRIPT_VERSION="1.2.0"
+fi
+# SCRIPT_DIR: always set to this file's location (not readonly — allows test override)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 #===============================================================================
 # DEFAULT CONFIGURATION (can be overridden by config file)
@@ -349,6 +353,7 @@ GLOBAL_MODE="false"
 LIST_MODE="false"
 REMOVE_MODE="false"
 OPERATION_UUID=""
+LIST_SUBCOMMAND=""
 CONFIG_ARGS=()
 
 # Relay-specific variables
@@ -371,27 +376,30 @@ LOG_JSON_FILE=""
 
 #===============================================================================
 # COLOR DEFINITIONS (for terminal output)
+# Guard allows safe sourcing from test files that define their own colors.
 #===============================================================================
-if [[ -t 1 ]]; then
-    readonly RED=$'\033[0;31m'
-    readonly GREEN=$'\033[0;32m'
-    readonly YELLOW=$'\033[0;33m'
-    readonly BLUE=$'\033[0;34m'
-    readonly MAGENTA=$'\033[0;35m'
-    readonly CYAN=$'\033[0;36m'
-    readonly WHITE=$'\033[0;37m'
-    readonly BOLD=$'\033[1m'
-    readonly RESET=$'\033[0m'
-else
-    readonly RED=''
-    readonly GREEN=''
-    readonly YELLOW=''
-    readonly BLUE=''
-    readonly MAGENTA=''
-    readonly CYAN=''
-    readonly WHITE=''
-    readonly BOLD=''
-    readonly RESET=''
+if [[ -z "${RED+x}" ]]; then
+    if [[ -t 1 ]]; then
+        readonly RED=$'\033[0;31m'
+        readonly GREEN=$'\033[0;32m'
+        readonly YELLOW=$'\033[0;33m'
+        readonly BLUE=$'\033[0;34m'
+        readonly MAGENTA=$'\033[0;35m'
+        readonly CYAN=$'\033[0;36m'
+        readonly WHITE=$'\033[0;37m'
+        readonly BOLD=$'\033[1m'
+        readonly RESET=$'\033[0m'
+    else
+        readonly RED=''
+        readonly GREEN=''
+        readonly YELLOW=''
+        readonly BLUE=''
+        readonly MAGENTA=''
+        readonly CYAN=''
+        readonly WHITE=''
+        readonly BOLD=''
+        readonly RESET=''
+    fi
 fi
 
 #===============================================================================
@@ -837,7 +845,9 @@ dispatch_action() {
             action_tui
             ;;
         relay)
-            validate_relay_servers_required
+            if ! validate_relay_servers_required; then
+                exit 2
+            fi
             action_relay
             ;;
         *)
@@ -851,16 +861,16 @@ validate_relay_servers_required() {
     if [[ -z "$FROM_SERVER" ]]; then
         log_error "Source server is required for relay operation"
         echo "Use: $SCRIPT_NAME relay --from <server_id> --to <server_id>"
-        exit 2
+        return 2
     fi
     if [[ -z "$TO_SERVER" ]]; then
         log_error "Destination server is required for relay operation"
         echo "Use: $SCRIPT_NAME relay --from <server_id> --to <server_id>"
-        exit 2
+        return 2
     fi
     if [[ "$FROM_SERVER" == "$TO_SERVER" ]]; then
         log_error "Source and destination servers cannot be the same"
-        exit 2
+        return 2
     fi
 }
 
@@ -884,6 +894,7 @@ action_init() {
         "$REMOTE_DIR"
         "$INBOX_DIR"
         "$OUTBOX_DIR"
+        "${OUTBOX_DIR}/global"
         "$LOGS_DIR"
         "$ARCHIVE_DIR"
         "$TMP_DIR"
@@ -1044,25 +1055,33 @@ action_push() {
     log_info "Starting PUSH operation [${OPERATION_UUID}]"
     log_info "Server: ${SERVER_ID}"
     
-    # Validate source path exists
-    if [[ -z "$SOURCE_PATH" ]]; then
+    # Validate source path(s) exist
+    if [[ ${#SOURCE_PATHS[@]} -eq 0 && -z "$SOURCE_PATH" ]]; then
         log_error "Source path is required for push operation"
         echo "Use: $SCRIPT_NAME push --server $SERVER_ID --source <path>"
         exit 2
     fi
-    
-    if [[ ! -e "$SOURCE_PATH" ]]; then
-        log_error "Source path does not exist: $SOURCE_PATH"
-        exit 5
+
+    # If only SOURCE_PATH is set (single -S), ensure SOURCE_PATHS has it
+    if [[ ${#SOURCE_PATHS[@]} -eq 0 && -n "$SOURCE_PATH" ]]; then
+        SOURCE_PATHS=("$SOURCE_PATH")
     fi
-    
+
+    # Validate all source paths exist
+    for src in "${SOURCE_PATHS[@]}"; do
+        if [[ ! -e "$src" ]]; then
+            log_error "Source path does not exist: $src"
+            exit 5
+        fi
+    done
+
     # Load server configuration
     local server_config
     if ! server_config=$(get_server_config "$SERVER_ID"); then
         log_error "Server not found or disabled: $SERVER_ID"
         exit 3
     fi
-    
+
     # Parse server config
     eval "$server_config"
 
@@ -1080,23 +1099,30 @@ action_push() {
     fi
     mkdir -p "$staging_dir"
 
-    # Perform pre-flight checks
-    preflight_push "$SOURCE_PATH" "$staging_dir"
+    # Ensure staging cleanup on failure
+    trap "rm -rf '$staging_dir'" RETURN
+
+    # Perform pre-flight checks for each source
+    for src in "${SOURCE_PATHS[@]}"; do
+        preflight_push "$src" "$staging_dir"
+    done
 
     # Build remote destination for display
     local remote_dest="${server_user}@${server_host}:${server_remote_base}/local/inbox/${HOSTNAME:-$(hostname)}/"
 
     if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would transfer:"
-        log_info "  Source:       $SOURCE_PATH"
-        log_info "  Local stage:  $staging_dir"
-        log_info "  Remote dest:  $remote_dest"
-        perform_rsync_push "$SOURCE_PATH" "$staging_dir" "--dry-run"
-        # Clean up dry-run staging
-        rm -rf "$staging_dir"
+        for src in "${SOURCE_PATHS[@]}"; do
+            log_info "[DRY-RUN] Would transfer:"
+            log_info "  Source:       $src"
+            log_info "  Local stage:  $staging_dir"
+            log_info "  Remote dest:  $remote_dest"
+            perform_rsync_push "$src" "$staging_dir" "--dry-run"
+        done
     else
-        log_info "Transferring: $SOURCE_PATH -> $staging_dir"
-        perform_rsync_push "$SOURCE_PATH" "$staging_dir" ""
+        for src in "${SOURCE_PATHS[@]}"; do
+            log_info "Transferring: $src -> $staging_dir"
+            perform_rsync_push "$src" "$staging_dir" ""
+        done
 
         # Remote sync
         sync_to_remote "$SERVER_ID" "$staging_dir"
@@ -1105,17 +1131,15 @@ action_push() {
         if [[ "$S3_ARCHIVE" == "true" && "$S3_ENABLED" == "true" ]]; then
             archive_to_s3 "$staging_dir" "$SERVER_ID"
         fi
-
-        # Clean up staging after successful sync
-        rm -rf "$staging_dir"
-        log_debug "Cleaned up staging directory: $staging_dir"
     fi
+
+    # Staging cleanup handled by RETURN trap
 
     local timestamp_end
     timestamp_end=$(get_iso_timestamp)
 
     # Log the operation
-    log_operation "$OPERATION_UUID" "push" "$SERVER_ID" "$SOURCE_PATH" "$staging_dir" \
+    log_operation "$OPERATION_UUID" "push" "$SERVER_ID" "${SOURCE_PATHS[*]}" "$staging_dir" \
         "$timestamp_start" "$timestamp_end" "SUCCESS"
 
     log_success "Push operation completed [${OPERATION_UUID}]"
@@ -1236,12 +1260,8 @@ action_share() {
         echo ""
         if [[ -n "$SERVER_ID" ]]; then
             echo "${BOLD}Shared with: ${SERVER_ID}${RESET}"
-        elif [[ "${GLOBAL_MODE:-false}" == "true" ]]; then
-            echo "${BOLD}Global shares (all servers)${RESET}"
         else
-            # List all shares
-            echo "${BOLD}All shared files${RESET}"
-            share_dir="${OUTBOX_DIR}"
+            echo "${BOLD}Global shares (all servers)${RESET}"
         fi
         echo "─────────────────────────────────────────────────────────"
 
@@ -1273,6 +1293,10 @@ action_share() {
         fi
 
         local file_to_remove="${share_dir}/$(basename "$SOURCE_PATH")"
+        if ! validate_path_within_sandbox "$file_to_remove"; then
+            log_error "Path validation failed for removal (security check)"
+            exit 4
+        fi
         if [[ -f "$file_to_remove" ]]; then
             rm -f "$file_to_remove"
             log_info "Removed: ${file_to_remove#$OUTBOX_DIR/}"
@@ -1430,17 +1454,20 @@ action_relay() {
     local push_failed=0
 
     if [[ "$DRY_RUN" == "true" ]]; then
-        # Dry-run: report what would happen
-        for file in "${files_to_relay[@]}"; do
-            local filename
-            filename=$(basename "$file")
-            log_info "[DRY-RUN] Would relay: $filename -> ${TO_SERVER}"
-            ((++push_count))
-        done
+        # Dry-run: report what would happen without iterating empty array
+        push_count=$file_count
+        log_info "[DRY-RUN] Would relay ${file_count} file(s) to ${TO_SERVER}"
     else
         # Create single staging directory for all files
         local staging_dir="${REMOTE_DIR}/${TO_SERVER}/relay-${OPERATION_UUID}"
+        if ! validate_path_within_sandbox "$staging_dir"; then
+            log_error "Staging path validation failed (security check)"
+            exit 4
+        fi
         mkdir -p "$staging_dir"
+
+        # Ensure staging cleanup on failure
+        trap "rm -rf '$staging_dir'" RETURN
 
         # Copy ALL files to staging first
         for file in "${files_to_relay[@]}"; do
@@ -1453,9 +1480,6 @@ action_relay() {
         # Single sync operation for all files
         log_info "Syncing ${file_count} file(s) to ${TO_SERVER}..."
 
-        local original_server_id="$SERVER_ID"
-        SERVER_ID="$TO_SERVER"
-
         if sync_to_remote "$TO_SERVER" "$staging_dir"; then
             push_count=$file_count
             log_success "Relayed ${push_count} file(s) to ${TO_SERVER}"
@@ -1464,10 +1488,7 @@ action_relay() {
             log_error "Failed to relay files to ${TO_SERVER}"
         fi
 
-        SERVER_ID="$original_server_id"
-
-        # Cleanup staging
-        rm -rf "$staging_dir"
+        # Staging cleanup handled by RETURN trap
     fi
 
     # Summary
@@ -1774,11 +1795,11 @@ main() {
     # Parse command line arguments
     parse_arguments "$@"
 
+    # Load configuration (may override paths) - must happen before migrations
+    load_configuration
+
     # Check for and run any needed migrations
     check_and_run_migrations
-
-    # Load configuration (may override paths)
-    load_configuration
 
     # Re-apply CLI log level flags (they take precedence over config)
     if [[ "$VERBOSE" == "true" ]]; then
@@ -1802,5 +1823,7 @@ main() {
     dispatch_action
 }
 
-# Run main function
-main "$@"
+# Run main function (guard allows sourcing for tests)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

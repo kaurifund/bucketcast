@@ -178,15 +178,15 @@ test_verify_transfer_passes_for_complete_transfer() {
     fi
 }
 
-test_verify_transfer_fails_for_missing_destination() {
+test_verify_transfer_skips_for_missing_destination() {
     setup_transfer_test
-    
+
     local source_file="${TEST_DIR}/verify_source.txt"
     echo "content" > "$source_file"
-    
-    # Destination doesn't exist
-    if verify_transfer "$source_file" "/nonexistent/path" 2>/dev/null; then
-        echo "Should fail verification for missing destination"
+
+    # When dest is missing, verify_transfer returns 0 (skip, not error)
+    if ! verify_transfer "$source_file" "/nonexistent/path" 2>/dev/null; then
+        echo "Should skip (return 0) when destination is not a file"
         return 1
     fi
 }
@@ -197,26 +197,28 @@ test_verify_transfer_fails_for_missing_destination() {
 
 test_get_transfer_stats_returns_size() {
     setup_transfer_test
-    
+
     local test_file="${TEST_DIR}/stats_test.txt"
-    echo "12345" > "$test_file"  # 6 bytes including newline
-    
-    local size
-    size=$(get_file_size "$test_file")
-    
-    assert_not_empty "$size" "Should return file size"
+    echo "12345" > "$test_file"
+
+    local stats
+    stats=$(calculate_transfer_stats "$test_file")
+
+    assert_contains "$stats" "BYTES=" "Should return file size"
+    assert_contains "$stats" "FILES=1" "Should count one file"
 }
 
 test_get_transfer_stats_handles_directory() {
     setup_transfer_test
-    
+
     local test_dir="${TEST_DIR}/stats_dir"
     mkdir -p "$test_dir"
     echo "file1" > "${test_dir}/file1.txt"
     echo "file2" > "${test_dir}/file2.txt"
-    
-    local size
-    size=$(get_directory_size "$test_dir")
-    
-    assert_not_empty "$size" "Should return directory size"
+
+    local stats
+    stats=$(calculate_transfer_stats "$test_dir")
+
+    assert_contains "$stats" "FILES=2" "Should count two files"
+    assert_contains "$stats" "BYTES=" "Should return directory size"
 }

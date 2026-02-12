@@ -8,19 +8,20 @@
 #   perform_rsync_push()   - Push files to local staging area
 #   perform_rsync_pull()   - Pull files from remote
 #   sync_to_remote()       - Sync local staging to remote server
-#   sync_from_remote()     - Sync from remote server
 #===============================================================================
 
 #===============================================================================
 # RSYNC: Base options (always applied)
 #===============================================================================
-readonly RSYNC_BASE_OPTIONS=(
-    "--archive"           # Archive mode (preserves permissions, timestamps, etc.)
-    "--compress"          # Compress during transfer
-    "--partial"           # Keep partial files (for resume)
-    "--human-readable"    # Human-readable output
-    "--itemize-changes"   # Show what's changing
-)
+if [[ -z "${RSYNC_BASE_OPTIONS+x}" ]]; then
+    readonly RSYNC_BASE_OPTIONS=(
+        "--archive"           # Archive mode (preserves permissions, timestamps, etc.)
+        "--compress"          # Compress during transfer
+        "--partial"           # Keep partial files (for resume)
+        "--human-readable"    # Human-readable output
+        "--itemize-changes"   # Show what's changing
+    )
+fi
 
 #===============================================================================
 # RSYNC: Build command options
@@ -299,42 +300,11 @@ perform_rsync_pull() {
     log_separator
 
     if [[ "$had_error" == "true" ]]; then
-        return 1
+        return "${rsync_exit_code:-1}"
     fi
 
     log_info "Pull complete"
     return 0
-}
-
-#===============================================================================
-# SCP: Fallback single file transfer
-#===============================================================================
-scp_transfer() {
-    local source="$1"
-    local dest="$2"
-    local direction="${3:-push}"  # push or pull
-    
-    log_debug "scp fallback: $source -> $dest"
-    
-    local scp_opts=()
-    
-    # Add quiet if not verbose
-    if [[ "${VERBOSE:-false}" != "true" ]]; then
-        scp_opts+=("-q")
-    fi
-    
-    # Recursive if directory
-    if [[ -d "$source" ]]; then
-        scp_opts+=("-r")
-    fi
-    
-    if scp "${scp_opts[@]}" "$source" "$dest"; then
-        log_debug "scp transfer successful"
-        return 0
-    else
-        log_error "scp transfer failed"
-        return 1
-    fi
 }
 
 #===============================================================================

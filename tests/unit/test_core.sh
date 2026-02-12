@@ -6,7 +6,9 @@
 # These tests are idempotent and have no external dependencies.
 #===============================================================================
 
-# Source the library under test
+# Source the library under test (core.sh depends on logging + validation)
+source "${TEST_DIR}/lib/logging.sh" 2>/dev/null || source "${PROJECT_ROOT}/lib/logging.sh"
+source "${TEST_DIR}/lib/validation.sh" 2>/dev/null || source "${PROJECT_ROOT}/lib/validation.sh"
 source "${TEST_DIR}/lib/core.sh" 2>/dev/null || source "${PROJECT_ROOT}/lib/core.sh"
 
 #===============================================================================
