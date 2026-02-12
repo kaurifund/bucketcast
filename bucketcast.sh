@@ -9,16 +9,16 @@
 #   ╚══════╝   ╚═╝   ╚═╝  ╚═══╝ ╚═════╝    ╚══════╝╚═╝  ╚═╝ ╚═════╝    ╚═╝      ╚═╝   ╚══════╝╚══════╝
 #
 #===============================================================================
-# SYNC SHUTTLE - Safe, Idempotent File Synchronization Tool
+# BUCKETCAST - Safe, Idempotent File Synchronization Tool
 #===============================================================================
 # Version:     1.0.0
-# Author:      Sync Shuttle Contributors
+# Author:      Bucketcast Contributors
 # License:     MIT
 # Repository:  https://github.com/kaurifund/bucketcast
 #===============================================================================
 #
 # DESCRIPTION:
-#   Sync Shuttle is a safe, manual file synchronization tool for transferring
+#   Bucketcast is a safe, manual file synchronization tool for transferring
 #   files between a home computer and remote servers. It prioritizes safety
 #   and auditability over speed, ensuring files are never accidentally deleted
 #   or overwritten.
@@ -28,7 +28,7 @@
 #-------------------------------------------------------------------------------
 #
 #   ┌─────────────────────────────────────────────────────────────────────────┐
-#   │                           SYNC SHUTTLE FLOW                             │
+#   │                           BUCKETCAST FLOW                             │
 #   └─────────────────────────────────────────────────────────────────────────┘
 #
 #   [CLI Input] ──► [Validation] ──► [Path Resolution] ──► [Safety Checks]
@@ -43,9 +43,9 @@
 # DIRECTORY STRUCTURE (RUNTIME):
 #-------------------------------------------------------------------------------
 #
-#   ~/.sync-shuttle/
+#   ~/.bucketcast/
 #   ├── config/
-#   │   ├── sync-shuttle.conf    # Main configuration (sourced)
+#   │   ├── bucketcast.conf    # Main configuration (sourced)
 #   │   └── servers.toml         # Server definitions (sourced)
 #   ├── remote/
 #   │   └── <server_id>/
@@ -101,7 +101,7 @@
 #   │       Shows current sync status and recent operations.
 #   │
 #   └── action_init()
-#           Initializes the ~/.sync-shuttle directory structure.
+#           Initializes the ~/.bucketcast directory structure.
 #
 #-------------------------------------------------------------------------------
 # SAFETY FUNCTIONS:
@@ -161,40 +161,40 @@
 # USAGE EXAMPLES:
 #-------------------------------------------------------------------------------
 #
-#   # Initialize sync-shuttle (first time setup)
-#   ./sync-shuttle.sh init
+#   # Initialize bucketcast (first time setup)
+#   ./bucketcast.sh init
 #
 #   # List all configured servers
-#   ./sync-shuttle.sh list servers
+#   ./bucketcast.sh list servers
 #
 #   # Push a file to a server (dry-run first!)
-#   ./sync-shuttle.sh push -s myserver ~/file.txt --dry-run
-#   ./sync-shuttle.sh push -s myserver ~/file.txt
+#   ./bucketcast.sh push -s myserver ~/file.txt --dry-run
+#   ./bucketcast.sh push -s myserver ~/file.txt
 #
 #   # Push multiple files
-#   ./sync-shuttle.sh push -s myserver file1.txt file2.txt config/
+#   ./bucketcast.sh push -s myserver file1.txt file2.txt config/
 #
 #   # Push current directory
-#   ./sync-shuttle.sh push -s myserver .
+#   ./bucketcast.sh push -s myserver .
 #
 #   # Pull files from a server
-#   ./sync-shuttle.sh pull --server myserver --dry-run
-#   ./sync-shuttle.sh pull --server myserver
+#   ./bucketcast.sh pull --server myserver --dry-run
+#   ./bucketcast.sh pull --server myserver
 #
 #   # Pull with force (allow overwrites, will prompt)
-#   ./sync-shuttle.sh pull --server myserver --force
+#   ./bucketcast.sh pull --server myserver --force
 #
 #   # View sync status and recent operations
-#   ./sync-shuttle.sh status
+#   ./bucketcast.sh status
 #
 #   # View files on a specific server's local mirror
-#   ./sync-shuttle.sh list files --server myserver
+#   ./bucketcast.sh list files --server myserver
 #
 #   # Launch interactive TUI (requires Python)
-#   ./sync-shuttle.sh tui
+#   ./bucketcast.sh tui
 #
 #   # Verbose mode for debugging
-#   ./sync-shuttle.sh push -s myserver ~/file.txt --verbose
+#   ./bucketcast.sh push -s myserver ~/file.txt --verbose
 #
 #-------------------------------------------------------------------------------
 # USE CASE PATTERNS:
@@ -205,57 +205,57 @@
 #   Scenario: Push code changes to remote dev server daily
 #   
 #   # Stage files in outbox
-#   cp -r ~/projects/myapp ~/.sync-shuttle/local/outbox/
+#   cp -r ~/projects/myapp ~/.bucketcast/local/outbox/
 #   
 #   # Dry-run to verify
-#   ./sync-shuttle.sh push --server devbox --dry-run
+#   ./bucketcast.sh push --server devbox --dry-run
 #   
 #   # Execute
-#   ./sync-shuttle.sh push --server devbox
+#   ./bucketcast.sh push --server devbox
 #
 #   PATTERN 2: Backup Pull from Production
 #   ───────────────────────────────────────
 #   Scenario: Pull config files from production for backup
 #   
 #   # Pull configs (they land in inbox)
-#   ./sync-shuttle.sh pull --server prod-web-01
+#   ./bucketcast.sh pull --server prod-web-01
 #   
 #   # Files available at:
-#   ls ~/.sync-shuttle/local/inbox/prod-web-01/
+#   ls ~/.bucketcast/local/inbox/prod-web-01/
 #
 #   PATTERN 3: Multi-Server Distribution
 #   ─────────────────────────────────────
 #   Scenario: Push same files to multiple servers
 #   
 #   for server in web-01 web-02 web-03; do
-#       ./sync-shuttle.sh push -s "$server" ~/deploy/
+#       ./bucketcast.sh push -s "$server" ~/deploy/
 #   done
 #
 #   PATTERN 4: S3 Archive After Sync (if enabled)
 #   ──────────────────────────────────────────────
 #   Scenario: Archive to S3 after successful sync
 #
-#   ./sync-shuttle.sh push -s myserver ~/data/ --s3-archive
+#   ./bucketcast.sh push -s myserver ~/data/ --s3-archive
 #
 #   PATTERN 5: Collision Handling
 #   ─────────────────────────────
 #   Scenario: File exists at destination
 #   
 #   # Without --force: skips existing files, logs as SKIPPED
-#   ./sync-shuttle.sh pull --server myserver
+#   ./bucketcast.sh pull --server myserver
 #   
 #   # With --force: prompts for confirmation, archives old version
-#   ./sync-shuttle.sh pull --server myserver --force
+#   ./bucketcast.sh pull --server myserver --force
 #
 #-------------------------------------------------------------------------------
 # CONFIGURATION REFERENCE:
 #-------------------------------------------------------------------------------
 #
-#   sync-shuttle.conf variables:
+#   bucketcast.conf variables:
 #   ┌─────────────────────┬────────────────────────────────────────────────┐
 #   │ Variable            │ Description                                    │
 #   ├─────────────────────┼────────────────────────────────────────────────┤
-#   │ SYNC_BASE_DIR       │ Base directory (default: ~/.sync-shuttle)     │
+#   │ SYNC_BASE_DIR       │ Base directory (default: ~/.bucketcast)     │
 #   │ DEFAULT_SSH_PORT    │ Default SSH port (default: 22)                │
 #   │ RSYNC_OPTIONS       │ Additional rsync flags                        │
 #   │ LOG_LEVEL           │ Logging verbosity (DEBUG|INFO|WARN|ERROR)     │
@@ -273,7 +273,7 @@
 #   │ host=192.168.1.100                                                  │
 #   │ port=22                                                             │
 #   │ user=deploy                                                         │
-#   │ remote_base=/home/deploy/.sync-shuttle                              │
+#   │ remote_base=/home/deploy/.bucketcast                              │
 #   │ enabled=true                                                        │
 #   │ s3_backup=false                                                     │
 #   └──────────────────────────────────────────────────────────────────────┘
@@ -319,20 +319,20 @@ set -o pipefail  # Exit on pipe failure
 #===============================================================================
 # SCRIPT METADATA
 #===============================================================================
-readonly SCRIPT_NAME="sync-shuttle"
+readonly SCRIPT_NAME="bucketcast"
 readonly SCRIPT_VERSION="1.2.0"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 #===============================================================================
 # DEFAULT CONFIGURATION (can be overridden by config file)
 #===============================================================================
-SYNC_BASE_DIR="${SYNC_BASE_DIR:-$HOME/.sync-shuttle}"
+SYNC_BASE_DIR="${SYNC_BASE_DIR:-$HOME/.bucketcast}"
 DEFAULT_SSH_PORT=22
 RSYNC_OPTIONS="-avz --partial --progress"
 LOG_LEVEL="INFO"
 S3_ENABLED="false"
 S3_BUCKET=""
-S3_PREFIX="sync-shuttle-archive"
+S3_PREFIX="bucketcast-archive"
 ARCHIVE_RETENTION_DAYS=30
 MAX_TRANSFER_SIZE="10G"
 
@@ -442,13 +442,13 @@ resolve_source_path() {
 #===============================================================================
 show_usage() {
     cat << EOF
-${BOLD}SYNC SHUTTLE${RESET} - Safe, Idempotent File Synchronization
+${BOLD}BUCKETCAST${RESET} - Safe, Idempotent File Synchronization
 
 ${BOLD}USAGE:${RESET}
     $SCRIPT_NAME <command> [options]
 
 ${BOLD}COMMANDS:${RESET}
-    init                    Initialize sync-shuttle directory structure
+    init                    Initialize bucketcast directory structure
     push                    Push files TO a remote server
     pull                    Pull files FROM a remote server
     files                   List all files (inbox/outbox/remote)
@@ -507,7 +507,7 @@ ${BOLD}EXAMPLES:${RESET}
     $SCRIPT_NAME tree -s myserver --remote
 
 ${BOLD}SAFETY:${RESET}
-    • All operations are sandboxed to ~/.sync-shuttle/
+    • All operations are sandboxed to ~/.bucketcast/
     • Files are NEVER deleted by this tool
     • Existing files are NEVER overwritten without --force
     • Use --dry-run to preview any operation
@@ -705,7 +705,7 @@ content = sys.stdin.read()
 pattern = r"declare\s+-A\s+server_(\w+)=\(\s*([^)]+)\)"
 matches = re.findall(pattern, content, re.DOTALL)
 
-print("# Sync Shuttle - Server Configuration")
+print("# Bucketcast - Server Configuration")
 print("# Migrated from servers.conf")
 print("")
 
@@ -740,7 +740,7 @@ for server_id, props_str in matches:
 
 # Run all necessary migrations based on version
 check_and_run_migrations() {
-    # Skip if sync-shuttle directory doesn't exist (fresh install)
+    # Skip if bucketcast directory doesn't exist (fresh install)
     [[ ! -d "$SYNC_BASE_DIR" ]] && return 0
 
     local installed_version
@@ -782,7 +782,7 @@ initialize_paths() {
 }
 
 load_configuration() {
-    local config_file="${CONFIG_DIR}/sync-shuttle.conf"
+    local config_file="${CONFIG_DIR}/bucketcast.conf"
     
     if [[ -f "$config_file" ]]; then
         log_debug "Loading configuration from: $config_file"
@@ -852,7 +852,7 @@ validate_server_required() {
 # ACTION: INIT
 #===============================================================================
 action_init() {
-    log_info "Initializing Sync Shuttle directory structure..."
+    log_info "Initializing Bucketcast directory structure..."
     
     # Create all directories
     local dirs=(
@@ -881,7 +881,7 @@ action_init() {
     log_debug "Set secure permissions on config directory"
     
     # Create default config if not exists
-    local config_file="${CONFIG_DIR}/sync-shuttle.conf"
+    local config_file="${CONFIG_DIR}/bucketcast.conf"
     if [[ ! -f "$config_file" ]]; then
         create_default_config "$config_file"
         log_info "Created default configuration: $config_file"
@@ -906,7 +906,7 @@ action_init() {
     # Write version file (append with timestamp)
     update_version_file
 
-    log_success "Sync Shuttle initialized successfully!"
+    log_success "Bucketcast initialized successfully!"
     echo ""
     echo "Next steps:"
     echo "  1. Edit ${CONFIG_DIR}/servers.toml to add your servers"
@@ -919,16 +919,16 @@ create_default_config() {
     
     cat > "$config_file" << 'DEFAULTCONFIG'
 #===============================================================================
-# SYNC SHUTTLE CONFIGURATION
+# BUCKETCAST CONFIGURATION
 #===============================================================================
-# This file is sourced by sync-shuttle.sh
+# This file is sourced by bucketcast.sh
 # Edit values below to customize behavior
 
 #-------------------------------------------------------------------------------
 # Base Paths
 #-------------------------------------------------------------------------------
-# Base directory for all sync-shuttle data (default: ~/.sync-shuttle)
-# SYNC_BASE_DIR="$HOME/.sync-shuttle"
+# Base directory for all bucketcast data (default: ~/.bucketcast)
+# SYNC_BASE_DIR="$HOME/.bucketcast"
 
 #-------------------------------------------------------------------------------
 # SSH Settings
@@ -955,10 +955,10 @@ LOG_LEVEL="INFO"
 S3_ENABLED="false"
 
 # S3 bucket name (required if S3_ENABLED=true)
-# S3_BUCKET="my-sync-shuttle-bucket"
+# S3_BUCKET="my-bucketcast-bucket"
 
 # S3 key prefix for archived files
-S3_PREFIX="sync-shuttle-archive"
+S3_PREFIX="bucketcast-archive"
 
 #-------------------------------------------------------------------------------
 # Archive Settings
@@ -978,7 +978,7 @@ create_default_servers_config() {
     local servers_file="$1"
 
     cat > "$servers_file" << 'DEFAULTSERVERS'
-# Sync Shuttle - Server Configuration
+# Bucketcast - Server Configuration
 # ====================================
 # Each [servers.ID] section defines a server.
 # ID must be lowercase alphanumeric with dashes (3-32 chars).
@@ -993,7 +993,7 @@ create_default_servers_config() {
 #   port = 22
 #   user = "ec2-user"
 #   identity_file = "~/.ssh/my-key.pem"
-#   remote_base = "/home/ec2-user/.sync-shuttle"
+#   remote_base = "/home/ec2-user/.bucketcast"
 #   enabled = true
 #   s3_backup = true
 
@@ -1002,7 +1002,7 @@ name = "Example Server"
 host = "192.168.1.100"
 port = 22
 user = "myuser"
-remote_base = "/home/myuser/.sync-shuttle"
+remote_base = "/home/myuser/.bucketcast"
 enabled = false
 s3_backup = false
 
@@ -1282,7 +1282,7 @@ list_server_files() {
 #===============================================================================
 action_status() {
     echo ""
-    echo "${BOLD}Sync Shuttle Status${RESET}"
+    echo "${BOLD}Bucketcast Status${RESET}"
     echo "═════════════════════════════════════════════════════════"
     echo ""
     
@@ -1362,7 +1362,7 @@ action_files() {
     if [[ -n "$SEARCH_QUERY" ]]; then
         echo "${BOLD}Search Results for \"${SEARCH_QUERY}\"${RESET}"
     else
-        echo "${BOLD}Sync Shuttle Files${RESET}"
+        echo "${BOLD}Bucketcast Files${RESET}"
     fi
     echo "═════════════════════════════════════════════════════════"
 
@@ -2278,7 +2278,7 @@ action_config() {
 # ACTION: BROWSE - Interactive file browser TUI
 #===============================================================================
 action_browse() {
-    local tui_script="${SCRIPT_DIR}/tui/sync_tui.py"
+    local tui_script="${SCRIPT_DIR}/tui/bucketcast_tui.py"
     local venv_python="${SCRIPT_DIR}/.venv/bin/python"
 
     if [[ ! -f "$tui_script" ]]; then
@@ -2301,7 +2301,7 @@ action_browse() {
 # ACTION: TUI (Dashboard)
 #===============================================================================
 action_tui() {
-    local tui_script="${SCRIPT_DIR}/tui/sync_tui.py"
+    local tui_script="${SCRIPT_DIR}/tui/bucketcast_tui.py"
     local venv_python="${SCRIPT_DIR}/.venv/bin/python"
 
     if [[ ! -f "$tui_script" ]]; then

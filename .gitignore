@@ -1,14 +1,14 @@
 # ==============================================================================
-# SYNC-SHUTTLE .gitignore
+# BUCKETCAST .gitignore
 # ==============================================================================
 
 # ==============================================================================
 # Runtime Data (Never commit user data)
 # ==============================================================================
 # The entire runtime directory - contains user files, logs, configs
-~/.sync-shuttle/
+~/.bucketcast/
 
-# If someone clones into their sync-shuttle runtime dir (edge case)
+# If someone clones into their bucketcast runtime dir (edge case)
 remote/
 local/
 logs/
@@ -16,9 +16,9 @@ archive/
 tmp/
 
 # User config files (contain server credentials/paths)
-config/sync-shuttle.conf
+config/bucketcast.conf
 config/servers.conf
-.syncshuttlerc
+.bucketcastrc
 
 # ==============================================================================
 # Logs
@@ -141,8 +141,8 @@ build/
 # Testing
 # ==============================================================================
 # Test output directories (created by mktemp)
-/tmp/sync-shuttle-test*/
-/tmp/sync-shuttle-tests/
+/tmp/bucketcast-test*/
+/tmp/bucketcast-tests/
 
 # Coverage reports
 coverage/

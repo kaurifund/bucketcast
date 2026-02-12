@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #===============================================================================
-# SYNC SHUTTLE - TEST HELPERS
+# BUCKETCAST - TEST HELPERS
 #===============================================================================
 # Common utilities and fixtures for all test types.
 # Source this file at the start of any test script.
@@ -24,7 +24,7 @@ set -o pipefail
 #===============================================================================
 readonly TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly PROJECT_ROOT="$(cd "${TEST_DIR}/.." && pwd)"
-readonly SYNC_SHUTTLE="${PROJECT_ROOT}/sync-shuttle.sh"
+readonly BUCKETCAST="${PROJECT_ROOT}/bucketcast.sh"
 
 # Test isolation - each test gets its own temp directory
 TEST_TMP=""
@@ -61,13 +61,13 @@ fi
 # Call at start of test file
 setup_test_environment() {
     # Create isolated temp directory
-    TEST_TMP=$(mktemp -d -t sync-shuttle-test.XXXXXX)
+    TEST_TMP=$(mktemp -d -t bucketcast-test.XXXXXX)
     TEST_HOME="${TEST_TMP}/home"
-    TEST_SYNC_BASE="${TEST_HOME}/.sync-shuttle"
+    TEST_SYNC_BASE="${TEST_HOME}/.bucketcast"
     
     mkdir -p "$TEST_HOME"
     
-    # Export for sync-shuttle to use
+    # Export for bucketcast to use
     export HOME="$TEST_HOME"
     export SYNC_BASE_DIR="$TEST_SYNC_BASE"
     
@@ -93,9 +93,9 @@ cleanup_test_environment() {
     return $exit_code
 }
 
-# Initialize sync-shuttle in test environment
-init_sync_shuttle() {
-    "$SYNC_SHUTTLE" init >/dev/null 2>&1
+# Initialize bucketcast in test environment
+init_bucketcast() {
+    "$BUCKETCAST" init >/dev/null 2>&1
 }
 
 #===============================================================================
@@ -331,7 +331,7 @@ declare -A server_${server_id}=(
     [host]="localhost"
     [port]="22"
     [user]="testuser"
-    [remote_base]="/tmp/sync-shuttle-remote"
+    [remote_base]="/tmp/bucketcast-remote"
     [enabled]="true"
     [s3_backup]="false"
 )

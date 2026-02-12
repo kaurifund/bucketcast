@@ -1,4 +1,4 @@
-# Sync Shuttle TUI Dependencies
+# Bucketcast TUI Dependencies
 # Install with: pip install -r requirements.txt
 
 # Terminal UI framework

@@ -1,4 +1,4 @@
-# SYNC-SHUTTLE LLM.TXT
+# BUCKETCAST LLM.TXT
 # Version: 1.0.0
 # Purpose: Complete repository context for AI agents and LLM systems
 # Format: Line-oriented, grepable, information-dense prose
@@ -105,7 +105,7 @@ GREP_SECTIONS :: grep "^\[" llm.txt | grep -v "TOC_LINE"
 [PROJECT_IDENTITY]
 ================================================================================
 
-PROJECT_NAME :: sync-shuttle
+PROJECT_NAME :: bucketcast
 PROJECT_TYPE :: CLI file synchronization tool
 PROJECT_LANGUAGE :: Bash 4.0+ with Python 3.8+ TUI
 PROJECT_LICENSE :: MIT
@@ -144,22 +144,22 @@ ARCH_PRINCIPLE :: Side effects isolated to main script and transfer operations
 ARCH_PRINCIPLE :: Fail-fast with descriptive error messages
 ARCH_PRINCIPLE :: Defense in depth for security
 
-FLOW :: User invokes sync-shuttle.sh
-FLOW :: sync-shuttle.sh -> sources lib/*.sh libraries
-FLOW :: sync-shuttle.sh -> parses CLI arguments
-FLOW :: sync-shuttle.sh -> validates environment
-FLOW :: sync-shuttle.sh -> loads configuration
-FLOW :: sync-shuttle.sh -> executes requested action
+FLOW :: User invokes bucketcast.sh
+FLOW :: bucketcast.sh -> sources lib/*.sh libraries
+FLOW :: bucketcast.sh -> parses CLI arguments
+FLOW :: bucketcast.sh -> validates environment
+FLOW :: bucketcast.sh -> loads configuration
+FLOW :: bucketcast.sh -> executes requested action
 FLOW :: Action -> validation -> preflight -> transfer -> logging
 FLOW :: Exit with appropriate code
 
-LAYER :: CLI Layer (sync-shuttle.sh) - argument parsing; user interaction; orchestration
+LAYER :: CLI Layer (bucketcast.sh) - argument parsing; user interaction; orchestration
 LAYER :: Library Layer (lib/*.sh) - pure functions; reusable logic; no direct I/O
 LAYER :: Config Layer (config/) - user settings; server definitions
-LAYER :: Data Layer (~/.sync-shuttle/) - runtime directories; logs; archives
+LAYER :: Data Layer (~/.bucketcast/) - runtime directories; logs; archives
 LAYER :: TUI Layer (tui/) - optional Python interface; async operations
 
-RUNTIME_DIR :: ~/.sync-shuttle/
+RUNTIME_DIR :: ~/.bucketcast/
 RUNTIME_DIR >> config/ - user configuration files
 RUNTIME_DIR >> remote/<server_id>/files/ - synced files organized by server
 RUNTIME_DIR >> local/inbox/ - files received from remote servers
@@ -172,8 +172,8 @@ RUNTIME_DIR >> tmp/ - temporary staging; lock files
 [FILE_MANIFEST]
 ================================================================================
 
-FILE :: sync-shuttle.sh
-FILE_PATH :: ./sync-shuttle.sh
+FILE :: bucketcast.sh
+FILE_PATH :: ./bucketcast.sh
 FILE_LINES :: 1139
 FILE_PURPOSE :: Main executable script; CLI interface; orchestration
 FILE_CONTAINS :: 310-line man-style documentation header
@@ -240,8 +240,8 @@ FILE_CONTAINS :: list_s3_archives() - enumerate S3 archives
 FILE_CONTAINS :: cleanup_s3_archives() - retention policy enforcement
 FILE_REQUIRES :: aws CLI configured with credentials
 
-FILE :: tui/sync_tui.py
-FILE_PATH :: ./tui/sync_tui.py
+FILE :: tui/bucketcast_tui.py
+FILE_PATH :: ./tui/bucketcast_tui.py
 FILE_LINES :: 666
 FILE_PURPOSE :: Terminal user interface; visual operation management
 FILE_CONTAINS :: ServerConfig dataclass
@@ -257,8 +257,8 @@ FILE_PURPOSE :: Python dependencies for TUI
 FILE_CONTAINS :: textual>=0.40.0
 FILE_CONTAINS :: rich>=13.0.0
 
-FILE :: config/sync-shuttle.conf.example
-FILE_PATH :: ./config/sync-shuttle.conf.example
+FILE :: config/bucketcast.conf.example
+FILE_PATH :: ./config/bucketcast.conf.example
 FILE_LINES :: 111
 FILE_PURPOSE :: Main configuration template
 FILE_CONTAINS :: Base path settings
@@ -277,8 +277,8 @@ FILE_CONTAINS :: Bash associative array syntax for servers
 FILE_CONTAINS :: Example servers (dev; nas; prod; pi; aws)
 FILE_CONTAINS :: identity_file support for SSH keys (.pem)
 
-FILE :: config/.syncshuttlerc.example
-FILE_PATH :: ./config/.syncshuttlerc.example
+FILE :: config/.bucketcastrc.example
+FILE_PATH :: ./config/.bucketcastrc.example
 FILE_PURPOSE :: User-level defaults template
 FILE_CONTAINS :: SSH default identity file
 FILE_CONTAINS :: Default behavior flags
@@ -289,8 +289,8 @@ FILE_PATH :: ./install.sh
 FILE_LINES :: 225
 FILE_PURPOSE :: Curl-able installer script
 FILE_USAGE :: curl -fsSL URL/install.sh | bash
-FILE_CREATES :: ~/.local/share/sync-shuttle/ (installation)
-FILE_CREATES :: ~/.local/bin/sync-shuttle (wrapper)
+FILE_CREATES :: ~/.local/share/bucketcast/ (installation)
+FILE_CREATES :: ~/.local/bin/bucketcast (wrapper)
 FILE_MODIFIES :: ~/.bashrc or ~/.zshrc (PATH addition)
 
 FILE :: README.md
@@ -477,14 +477,14 @@ FUNC_PURE :: no (removes file)
 [CLI_REFERENCE]
 ================================================================================
 
-CMD :: sync-shuttle init
-CMD_PURPOSE :: Initialize sync-shuttle directory structure
-CMD_CREATES :: ~/.sync-shuttle/ and all subdirectories
+CMD :: bucketcast init
+CMD_PURPOSE :: Initialize bucketcast directory structure
+CMD_CREATES :: ~/.bucketcast/ and all subdirectories
 CMD_CREATES :: Default configuration files from examples
 CMD_IDEMPOTENT :: yes - safe to run multiple times
 CMD_EXIT :: 0 on success; 1 on failure
 
-CMD :: sync-shuttle push --server <id> --source <path> (--dry-run) (--force) (--verbose) (--quiet) (--s3-archive)
+CMD :: bucketcast push --server <id> --source <path> (--dry-run) (--force) (--verbose) (--quiet) (--s3-archive)
 CMD_PURPOSE :: Push files from local to remote server
 CMD_REQUIRED :: --server <id> - target server from servers.conf
 CMD_REQUIRED :: --source <path> - local file or directory
@@ -496,40 +496,40 @@ CMD_OPTIONAL :: --s3-archive - archive to S3 after transfer
 CMD_FLOW :: validate -> preflight -> stage locally -> rsync to remote -> log
 CMD_EXIT :: 0 success; 1 general error; 2 invalid args; 3 not initialized; 4 server not found; 5 transfer failed; 6 collision; 7 validation failed; 8 dependency missing
 
-CMD :: sync-shuttle pull --server <id> (--dry-run) (--force) (--verbose) (--quiet) (--s3-archive)
+CMD :: bucketcast pull --server <id> (--dry-run) (--force) (--verbose) (--quiet) (--s3-archive)
 CMD_PURPOSE :: Pull files from remote server to local
 CMD_REQUIRED :: --server <id> - source server from servers.conf
 CMD_OPTIONAL :: Same as push
 CMD_FLOW :: validate -> preflight -> rsync from remote -> stage locally -> log
 CMD_EXIT :: Same as push
 
-CMD :: sync-shuttle list servers
+CMD :: bucketcast list servers
 CMD_PURPOSE :: Display all configured servers
 CMD_OUTPUT :: Table of server id; name; host; enabled status
 CMD_EXIT :: 0 success; 1 no servers configured
 
-CMD :: sync-shuttle list files --server <id>
+CMD :: bucketcast list files --server <id>
 CMD_PURPOSE :: Display synced files for a server
 CMD_OUTPUT :: Tree view of SYNC_BASE_DIR/remote/server_id/files/
 CMD_EXIT :: 0 success; 1 error
 
-CMD :: sync-shuttle status
-CMD_PURPOSE :: Display overall sync-shuttle status
+CMD :: bucketcast status
+CMD_PURPOSE :: Display overall bucketcast status
 CMD_OUTPUT :: Directory sizes; last operations; server count
 CMD_EXIT :: 0 always
 
-CMD :: sync-shuttle tui
+CMD :: bucketcast tui
 CMD_PURPOSE :: Launch terminal user interface
 CMD_REQUIRES :: Python 3.8+; textual; rich
 CMD_EXIT :: 0 on clean exit; 1 on error
 
-CMD :: sync-shuttle --help
+CMD :: bucketcast --help
 CMD_PURPOSE :: Display comprehensive help
 CMD_OUTPUT :: Man-style documentation from header
 
-CMD :: sync-shuttle --version
+CMD :: bucketcast --version
 CMD_PURPOSE :: Display version information
-CMD_OUTPUT :: sync-shuttle version X.Y.Z
+CMD_OUTPUT :: bucketcast version X.Y.Z
 
 ================================================================================
 [SCHEMA_DEFINITIONS]
@@ -544,7 +544,7 @@ SCHEMA_FIELD :: host (string) - hostname or IP address
 SCHEMA_FIELD :: port (integer) - SSH port; default 22
 SCHEMA_FIELD :: user (string) - SSH username
 SCHEMA_FIELD :: identity_file (string) - path to SSH key; optional; supports ~ expansion
-SCHEMA_FIELD :: remote_base (string) - remote sync-shuttle directory path
+SCHEMA_FIELD :: remote_base (string) - remote bucketcast directory path
 SCHEMA_FIELD :: enabled (boolean) - true/false
 SCHEMA_FIELD :: s3_backup (boolean) - archive to S3 after sync; true/false
 SCHEMA_SYNTAX :: declare -A server_<id>=([name]="..." [host]="..." [port]="..." [user]="..." [identity_file]="..." [remote_base]="..." [enabled]="..." [s3_backup]="...")
@@ -593,8 +593,8 @@ SCHEMA_FIELD :: user (string) - executing user
 ================================================================================
 
 CONFIG :: SYNC_BASE_DIR
-CONFIG_DEFAULT :: ~/.sync-shuttle
-CONFIG_PURPOSE :: Root directory for all sync-shuttle data
+CONFIG_DEFAULT :: ~/.bucketcast
+CONFIG_PURPOSE :: Root directory for all bucketcast data
 CONFIG_CONTAINS :: config/; remote/; local/; logs/; archive/; tmp/
 
 CONFIG :: LOG_LEVEL
@@ -646,7 +646,7 @@ EXIT :: 2
 EXIT_MEANING :: Invalid arguments - missing required flags; invalid values
 
 EXIT :: 3
-EXIT_MEANING :: Not initialized - run sync-shuttle init first
+EXIT_MEANING :: Not initialized - run bucketcast init first
 
 EXIT :: 4
 EXIT_MEANING :: Server not found - server_id not in servers.conf or disabled
@@ -668,7 +668,7 @@ EXIT_MEANING :: Dependency missing - required tool not found; bash version too o
 ================================================================================
 
 FLOW :: PUSH OPERATION
-FLOW_STEP :: 1 - User invokes: sync-shuttle push --server <id> --source <path>
+FLOW_STEP :: 1 - User invokes: bucketcast push --server <id> --source <path>
 FLOW_STEP :: 2 - Parse arguments; set global flags (DRY_RUN; FORCE; VERBOSE)
 FLOW_STEP :: 3 - validate_environment() - check bash; tools; directories
 FLOW_STEP :: 4 - validate_server_id(id) - format check
@@ -685,7 +685,7 @@ FLOW_STEP :: 14 - release_lock(push) - free lock
 FLOW_STEP :: 15 - Exit with appropriate code
 
 FLOW :: PULL OPERATION
-FLOW_STEP :: 1 - User invokes: sync-shuttle pull --server <id>
+FLOW_STEP :: 1 - User invokes: bucketcast pull --server <id>
 FLOW_STEP :: 2-8 - Same validation as push
 FLOW_STEP :: 9 - generate_uuid() - create operation identifier
 FLOW_STEP :: 10 - sync_from_remote() - rsync over SSH from server
@@ -694,7 +694,7 @@ FLOW_STEP :: 12 - (if s3_archive) archive_to_s3() - upload to S3
 FLOW_STEP :: 13-15 - Same logging and cleanup as push
 
 FLOW :: INIT OPERATION
-FLOW_STEP :: 1 - User invokes: sync-shuttle init
+FLOW_STEP :: 1 - User invokes: bucketcast init
 FLOW_STEP :: 2 - Create SYNC_BASE_DIR if not exists
 FLOW_STEP :: 3 - Create subdirectories: config/; remote/; local/inbox/; local/outbox/; logs/; archive/; tmp/
 FLOW_STEP :: 4 - Copy example configs if not exist
@@ -814,7 +814,7 @@ DEPEND_CHECK :: check_s3_available()
 DEPEND :: python3 >= 3.8
 DEPEND_TYPE :: Optional
 DEPEND_PURPOSE :: TUI interface
-DEPEND_CHECK :: sync-shuttle tui command
+DEPEND_CHECK :: bucketcast tui command
 
 DEPEND :: textual >= 0.40.0
 DEPEND_TYPE :: Optional (Python)
@@ -956,13 +956,13 @@ PATTERN_RESULT :: Optional SSH key with tilde expansion
 [TROUBLESHOOTING]
 ================================================================================
 
-TROUBLE :: "Sync Shuttle not initialized"
-TROUBLE_CAUSE :: SYNC_BASE_DIR (~/.sync-shuttle/) does not exist
-TROUBLE_FIX :: Run: sync-shuttle init
+TROUBLE :: "Bucketcast not initialized"
+TROUBLE_CAUSE :: SYNC_BASE_DIR (~/.bucketcast/) does not exist
+TROUBLE_FIX :: Run: bucketcast init
 
 TROUBLE :: "Server not found: <id>"
 TROUBLE_CAUSE :: Server ID not in servers.conf or server disabled
-TROUBLE_FIX :: Check ~/.sync-shuttle/config/servers.conf; ensure enabled="true"
+TROUBLE_FIX :: Check ~/.bucketcast/config/servers.conf; ensure enabled="true"
 
 TROUBLE :: "Missing required tools: rsync"
 TROUBLE_CAUSE :: rsync not installed
@@ -973,7 +973,7 @@ TROUBLE_CAUSE :: Old bash version (common on macOS)
 TROUBLE_FIX :: Install newer bash: brew install bash; update PATH
 
 TROUBLE :: "Security violation: Path is outside sandbox"
-TROUBLE_CAUSE :: Attempted operation on path outside ~/.sync-shuttle/
+TROUBLE_CAUSE :: Attempted operation on path outside ~/.bucketcast/
 TROUBLE_FIX :: Only operate on files within SYNC_BASE_DIR
 
 TROUBLE :: "SSH connection failed"
@@ -1001,7 +1001,7 @@ This section answers questions AI agents commonly ask about this codebase.
 Designed to reduce follow-up queries and provide immediate answers.
 
 FAQ :: What is this project?
-FAQ_ANSWER :: sync-shuttle is a CLI file synchronization tool that prioritizes safety over convenience
+FAQ_ANSWER :: bucketcast is a CLI file synchronization tool that prioritizes safety over convenience
 FAQ_ANSWER :: It wraps rsync with guardrails to prevent accidental data loss
 FAQ_ANSWER :: Core guarantee: never deletes files; never overwrites without consent
 
@@ -1012,33 +1012,33 @@ FAQ_ANSWER :: No compiled components; pure scripts
 
 FAQ :: How do I install this?
 FAQ_ANSWER :: Option 1: curl -fsSL URL/install.sh | bash
-FAQ_ANSWER :: Option 2: git clone; chmod +x sync-shuttle.sh; ./sync-shuttle.sh init
+FAQ_ANSWER :: Option 2: git clone; chmod +x bucketcast.sh; ./bucketcast.sh init
 FAQ_ANSWER :: Option 3: Copy files manually; run init
 
 FAQ :: How do I add a new server?
-FAQ_ANSWER :: Edit ~/.sync-shuttle/config/servers.conf
+FAQ_ANSWER :: Edit ~/.bucketcast/config/servers.conf
 FAQ_ANSWER :: Add new declare -A server_<id>=(...) block
 FAQ_ANSWER :: Required fields: host; user; remote_base; enabled="true"
 FAQ_ANSWER :: Optional: port (default 22); identity_file; s3_backup
 
 FAQ :: How do I push files to a server?
-FAQ_ANSWER :: sync-shuttle push --server <id> --source <path>
-FAQ_ANSWER :: Always test first: sync-shuttle push --server <id> --source <path> --dry-run
+FAQ_ANSWER :: bucketcast push --server <id> --source <path>
+FAQ_ANSWER :: Always test first: bucketcast push --server <id> --source <path> --dry-run
 FAQ_ANSWER :: Files go to: remote_server:remote_base/local/inbox/your_hostname/
 
 FAQ :: How do I pull files from a server?
-FAQ_ANSWER :: sync-shuttle pull --server <id>
-FAQ_ANSWER :: Files arrive at: ~/.sync-shuttle/local/inbox/<server_id>/
+FAQ_ANSWER :: bucketcast pull --server <id>
+FAQ_ANSWER :: Files arrive at: ~/.bucketcast/local/inbox/<server_id>/
 
 FAQ :: Where are synced files stored?
-FAQ_ANSWER :: Push: Local staging at ~/.sync-shuttle/remote/<server_id>/files/
+FAQ_ANSWER :: Push: Local staging at ~/.bucketcast/remote/<server_id>/files/
 FAQ_ANSWER :: Push: Remote destination at <remote_base>/local/inbox/<hostname>/
-FAQ_ANSWER :: Pull: Local destination at ~/.sync-shuttle/local/inbox/<server_id>/
+FAQ_ANSWER :: Pull: Local destination at ~/.bucketcast/local/inbox/<server_id>/
 
 FAQ :: Where are logs stored?
-FAQ_ANSWER :: Human-readable: ~/.sync-shuttle/logs/sync.log
-FAQ_ANSWER :: Machine-readable: ~/.sync-shuttle/logs/sync.jsonl (JSON Lines)
-FAQ_ANSWER :: Query JSON: jq '.status' ~/.sync-shuttle/logs/sync.jsonl
+FAQ_ANSWER :: Human-readable: ~/.bucketcast/logs/sync.log
+FAQ_ANSWER :: Machine-readable: ~/.bucketcast/logs/sync.jsonl (JSON Lines)
+FAQ_ANSWER :: Query JSON: jq '.status' ~/.bucketcast/logs/sync.jsonl
 
 FAQ :: What does --dry-run do?
 FAQ_ANSWER :: Simulates the operation without making changes
@@ -1049,7 +1049,7 @@ FAQ_ANSWER :: No files are modified; no network transfer occurs
 FAQ :: What does --force do?
 FAQ_ANSWER :: Allows overwriting existing files at destination
 FAQ_ANSWER :: Original files are archived before overwrite
-FAQ_ANSWER :: Archive location: ~/.sync-shuttle/archive/<server_id>/<timestamp>/
+FAQ_ANSWER :: Archive location: ~/.bucketcast/archive/<server_id>/<timestamp>/
 FAQ_ANSWER :: Without --force: operation fails with exit code 6 on collision
 
 FAQ :: How do I use SSH keys (.pem files)?
@@ -1066,7 +1066,7 @@ FAQ_ANSWER :: Password prompts will appear if key auth fails
 FAQ :: Can this delete files on the remote?
 FAQ_ANSWER :: NO - this is a core safety guarantee
 FAQ_ANSWER :: rsync is NEVER invoked with --delete
-FAQ_ANSWER :: To delete remote files; use ssh directly (not sync-shuttle)
+FAQ_ANSWER :: To delete remote files; use ssh directly (not bucketcast)
 
 FAQ :: Can this overwrite files?
 FAQ_ANSWER :: Only with explicit --force flag
@@ -1079,13 +1079,13 @@ FAQ_ANSWER :: Re-running the command resumes transfer
 FAQ_ANSWER :: No corruption; rsync handles this gracefully
 
 FAQ :: How do I see what servers are configured?
-FAQ_ANSWER :: sync-shuttle list servers
-FAQ_ANSWER :: Or: cat ~/.sync-shuttle/config/servers.conf
+FAQ_ANSWER :: bucketcast list servers
+FAQ_ANSWER :: Or: cat ~/.bucketcast/config/servers.conf
 
-FAQ :: How do I check if sync-shuttle is working?
-FAQ_ANSWER :: sync-shuttle status - shows overview
-FAQ_ANSWER :: sync-shuttle --version - shows version
-FAQ_ANSWER :: sync-shuttle list servers - shows configured servers
+FAQ :: How do I check if bucketcast is working?
+FAQ_ANSWER :: bucketcast status - shows overview
+FAQ_ANSWER :: bucketcast --version - shows version
+FAQ_ANSWER :: bucketcast list servers - shows configured servers
 
 FAQ :: What are the exit codes?
 FAQ_ANSWER :: 0=success; 1=general error; 2=invalid args; 3=not initialized
@@ -1100,13 +1100,13 @@ FAQ_ANSWER :: ./tests/run_tests.sh integration - integration tests only
 FAQ_ANSWER :: ./tests/run_tests.sh e2e - end-to-end tests only
 
 FAQ :: Where is the main entry point?
-FAQ_ANSWER :: sync-shuttle.sh is the main executable
+FAQ_ANSWER :: bucketcast.sh is the main executable
 FAQ_ANSWER :: Line ~400: Library sourcing begins
 FAQ_ANSWER :: Line ~500: Argument parsing begins
 FAQ_ANSWER :: Line ~700: Action dispatch begins
 
 FAQ :: How do I add a new command/action?
-FAQ_ANSWER :: 1. Add case in action dispatch (~line 700 in sync-shuttle.sh)
+FAQ_ANSWER :: 1. Add case in action dispatch (~line 700 in bucketcast.sh)
 FAQ_ANSWER :: 2. Create handler function (do_<action>)
 FAQ_ANSWER :: 3. Add to help text
 FAQ_ANSWER :: 4. Add tests in tests/e2e/
@@ -1148,13 +1148,13 @@ FAQ_ANSWER :: NEVER: --delete (core safety guarantee)
 
 FAQ :: How do I configure S3 archival?
 FAQ_ANSWER :: 1. Install and configure aws CLI
-FAQ_ANSWER :: 2. Set S3_BUCKET in sync-shuttle.conf
+FAQ_ANSWER :: 2. Set S3_BUCKET in bucketcast.conf
 FAQ_ANSWER :: 3. Use --s3-archive flag on push/pull
 FAQ_ANSWER :: Files archived to: s3://bucket/archive/server_id/date/uuid/
 
 FAQ :: What is the TUI?
 FAQ_ANSWER :: Terminal User Interface - visual file browser
-FAQ_ANSWER :: Launch: sync-shuttle tui
+FAQ_ANSWER :: Launch: bucketcast tui
 FAQ_ANSWER :: Requires: pip3 install textual rich
 FAQ_ANSWER :: Keys: q=quit; p=push; l=pull; r=refresh
 
@@ -1165,11 +1165,11 @@ FAQ_ANSWER :: Follow existing code style
 FAQ_ANSWER :: Update llm.txt if adding features
 
 FAQ :: Where is the config file schema?
-FAQ_ANSWER :: sync-shuttle.conf: see config/sync-shuttle.conf.example
+FAQ_ANSWER :: bucketcast.conf: see config/bucketcast.conf.example
 FAQ_ANSWER :: servers.conf: see config/servers.conf.example
 FAQ_ANSWER :: Schema definitions: see [SCHEMA_DEFINITIONS] in this file
 
-FAQ :: Why is it called sync-shuttle?
+FAQ :: Why is it called bucketcast?
 FAQ_ANSWER :: Shuttle: moves files back and forth between machines
 FAQ_ANSWER :: Sync: synchronization of file state
 FAQ_ANSWER :: Evokes safe; reliable transportation
@@ -1259,7 +1259,7 @@ EDGE :: Concurrent push to same server
 EDGE_BEHAVIOR :: Second operation blocked by lock
 EDGE_LOGGED :: Yes; "already running" error
 EDGE_EXIT :: 1 (general error)
-EDGE_LOCK :: ~/.sync-shuttle/tmp/push.lock
+EDGE_LOCK :: ~/.bucketcast/tmp/push.lock
 
 EDGE :: Running as root
 EDGE_BEHAVIOR :: Works but not recommended
@@ -1370,7 +1370,7 @@ TODO_ITEM :: AI Agent API - Secure file access for LLMs
 This section guides AI agents on how to modify this codebase safely.
 
 MOD :: Adding a new CLI flag
-MOD_STEP :: 1. Edit sync-shuttle.sh argument parsing (~line 500)
+MOD_STEP :: 1. Edit bucketcast.sh argument parsing (~line 500)
 MOD_STEP :: 2. Add case in while loop: --newflag) NEWFLAG="true"; shift ;;
 MOD_STEP :: 3. Initialize variable at top: NEWFLAG="${NEWFLAG:-false}"
 MOD_STEP :: 4. Add to help text (~line 430)
@@ -1378,7 +1378,7 @@ MOD_STEP :: 5. Document in llm.txt [CLI_REFERENCE]
 MOD_STEP :: 6. Add test in tests/e2e/test_scenarios.sh
 
 MOD :: Adding a new action (subcommand)
-MOD_STEP :: 1. Add case in action dispatch (~line 700 in sync-shuttle.sh)
+MOD_STEP :: 1. Add case in action dispatch (~line 700 in bucketcast.sh)
 MOD_STEP :: 2. Create do_newaction() function
 MOD_STEP :: 3. Add to help text
 MOD_STEP :: 4. Document in llm.txt
@@ -1398,8 +1398,8 @@ MOD_STEP :: 4. Update [SCHEMA_DEFINITIONS] in llm.txt
 MOD_STEP :: 5. Add validation if needed
 
 MOD :: Adding a new config option
-MOD_STEP :: 1. Add to config/sync-shuttle.conf.example with documentation
-MOD_STEP :: 2. Add default in sync-shuttle.sh variable initialization
+MOD_STEP :: 1. Add to config/bucketcast.conf.example with documentation
+MOD_STEP :: 2. Add default in bucketcast.sh variable initialization
 MOD_STEP :: 3. Document in llm.txt [CONFIGURATION_REFERENCE]
 
 MOD :: Adding a new exit code
@@ -1421,7 +1421,7 @@ MOD_STEP :: 2. Test extensively with --dry-run
 MOD_STEP :: 3. Document changes
 
 MOD :: Adding Python TUI feature
-MOD_STEP :: 1. Edit tui/sync_tui.py
+MOD_STEP :: 1. Edit tui/bucketcast_tui.py
 MOD_STEP :: 2. Follow Textual widget patterns
 MOD_STEP :: 3. Update requirements.txt if new dependency
 
@@ -1438,19 +1438,19 @@ CODING_STYLE :: Fail fast with meaningful errors
 
 This section shows how files depend on and interact with each other.
 
-REL :: sync-shuttle.sh -> lib/*.sh
+REL :: bucketcast.sh -> lib/*.sh
 REL_TYPE :: sources (includes)
 REL_ORDER :: core.sh; logging.sh; validation.sh; transfer.sh; s3.sh
 REL_NOTE :: Order matters; later libs may use earlier functions
 
-REL :: sync-shuttle.sh -> config/sync-shuttle.conf
+REL :: bucketcast.sh -> config/bucketcast.conf
 REL_TYPE :: sources (user config)
-REL_LOCATION :: ~/.sync-shuttle/config/sync-shuttle.conf
+REL_LOCATION :: ~/.bucketcast/config/bucketcast.conf
 REL_OPTIONAL :: Yes; uses defaults if missing
 
 REL :: lib/core.sh -> config/servers.conf
 REL_TYPE :: sources (server definitions)
-REL_LOCATION :: ~/.sync-shuttle/config/servers.conf
+REL_LOCATION :: ~/.bucketcast/config/servers.conf
 REL_REQUIRED :: Yes for push/pull operations
 
 REL :: lib/transfer.sh -> lib/core.sh
@@ -1477,9 +1477,9 @@ REL :: lib/validation.sh -> lib/logging.sh
 REL_TYPE :: calls functions
 REL_FUNCTIONS :: log_error(); log_debug(); log_warn()
 
-REL :: tui/sync_tui.py -> sync-shuttle.sh
+REL :: tui/bucketcast_tui.py -> bucketcast.sh
 REL_TYPE :: subprocess execution
-REL_METHOD :: subprocess.run(["sync-shuttle.sh", ...])
+REL_METHOD :: subprocess.run(["bucketcast.sh", ...])
 
 REL :: tests/*.sh -> lib/*.sh
 REL_TYPE :: sources for testing
@@ -1489,15 +1489,15 @@ REL :: tests/*.sh -> tests/helpers/*.sh
 REL_TYPE :: sources helpers
 REL_PROVIDES :: Assertions; fixtures; mocks
 
-REL :: install.sh -> sync-shuttle.sh
+REL :: install.sh -> bucketcast.sh
 REL_TYPE :: copies and wraps
-REL_CREATES :: ~/.local/bin/sync-shuttle wrapper
+REL_CREATES :: ~/.local/bin/bucketcast wrapper
 
-CALL_HIERARCHY :: User -> sync-shuttle.sh -> lib/validation.sh (validate)
-CALL_HIERARCHY :: User -> sync-shuttle.sh -> lib/core.sh (config)
-CALL_HIERARCHY :: User -> sync-shuttle.sh -> lib/transfer.sh (execute)
-CALL_HIERARCHY :: User -> sync-shuttle.sh -> lib/logging.sh (throughout)
-CALL_HIERARCHY :: User -> sync-shuttle.sh -> lib/s3.sh (optional)
+CALL_HIERARCHY :: User -> bucketcast.sh -> lib/validation.sh (validate)
+CALL_HIERARCHY :: User -> bucketcast.sh -> lib/core.sh (config)
+CALL_HIERARCHY :: User -> bucketcast.sh -> lib/transfer.sh (execute)
+CALL_HIERARCHY :: User -> bucketcast.sh -> lib/logging.sh (throughout)
+CALL_HIERARCHY :: User -> bucketcast.sh -> lib/s3.sh (optional)
 
 DATA_FLOW_PUSH :: User args -> validate -> load server -> stage local -> rsync remote -> log
 DATA_FLOW_PULL :: User args -> validate -> load server -> rsync local -> stage inbox -> log
@@ -1538,34 +1538,34 @@ TERM_DEFINITION :: (Future) Full-text search database of synced files
 ================================================================================
 
 QUICK :: Initialize
-QUICK_CMD :: sync-shuttle init
+QUICK_CMD :: bucketcast init
 
 QUICK :: Push files to server
-QUICK_CMD :: sync-shuttle push --server myserver --source ~/files/ --dry-run
-QUICK_CMD :: sync-shuttle push --server myserver --source ~/files/
+QUICK_CMD :: bucketcast push --server myserver --source ~/files/ --dry-run
+QUICK_CMD :: bucketcast push --server myserver --source ~/files/
 
 QUICK :: Pull files from server
-QUICK_CMD :: sync-shuttle pull --server myserver --dry-run
-QUICK_CMD :: sync-shuttle pull --server myserver
+QUICK_CMD :: bucketcast pull --server myserver --dry-run
+QUICK_CMD :: bucketcast pull --server myserver
 
 QUICK :: List servers
-QUICK_CMD :: sync-shuttle list servers
+QUICK_CMD :: bucketcast list servers
 
 QUICK :: Check status
-QUICK_CMD :: sync-shuttle status
+QUICK_CMD :: bucketcast status
 
 QUICK :: Launch TUI
-QUICK_CMD :: sync-shuttle tui
+QUICK_CMD :: bucketcast tui
 
 QUICK :: Get help
-QUICK_CMD :: sync-shuttle --help
+QUICK_CMD :: bucketcast --help
 
 QUICK :: View logs
-QUICK_CMD :: cat ~/.sync-shuttle/logs/sync.log
-QUICK_CMD :: jq . ~/.sync-shuttle/logs/sync.jsonl
+QUICK_CMD :: cat ~/.bucketcast/logs/sync.log
+QUICK_CMD :: jq . ~/.bucketcast/logs/sync.jsonl
 
 QUICK :: Edit server config
-QUICK_CMD :: nano ~/.sync-shuttle/config/servers.conf
+QUICK_CMD :: nano ~/.bucketcast/config/servers.conf
 
 ================================================================================
 [DOCUMENT_METADATA]
