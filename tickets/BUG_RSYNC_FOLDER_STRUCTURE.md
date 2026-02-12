@@ -13,16 +13,16 @@ When pushing a directory with a trailing slash (e.g., `00081/`), the folder stru
 
 ```bash
 # On local machine - NOTE THE TRAILING SLASH
-sync-shuttle push -s myserver -S ~/myproject/
+bucketcast push -s myserver -S ~/myproject/
 
 # Expected on remote:
-~/.sync-shuttle/local/inbox/<hostname>/myproject/
+~/.bucketcast/local/inbox/<hostname>/myproject/
 ├── file1.txt
 ├── file2.txt
 └── subdir/
 
 # Actual on remote:
-~/.sync-shuttle/local/inbox/<hostname>/
+~/.bucketcast/local/inbox/<hostname>/
 ├── file1.txt      ← contents dumped directly, folder name lost
 ├── file2.txt
 └── subdir/
@@ -48,14 +48,14 @@ rsync copies CONTENTS of `00081` directly into staging, losing the folder name.
 Strip trailing slashes from SOURCE_PATH in argument parsing:
 
 ```bash
-# In sync-shuttle.sh, after setting SOURCE_PATH
+# In bucketcast.sh, after setting SOURCE_PATH
 SOURCE_PATH="${SOURCE_PATH%/}"  # Remove trailing slash
 ```
 
 ## Why NOT in sync_to_remote?
 
 The `sync_to_remote()` function correctly uses `$local_dir/` with trailing slash because:
-- `local_dir` = `~/.sync-shuttle/remote/<server>/files` (staging container)
+- `local_dir` = `~/.bucketcast/remote/<server>/files` (staging container)
 - We WANT to copy contents of `files/` (which contains `mydir/`) to remote
 - Result: `inbox/hostname/mydir/` ✓
 
@@ -72,9 +72,9 @@ The bug is in the input, not the sync function.
 
 ```bash
 # Should preserve folder name
-sync-shuttle push -s test -S ./testdir/ --dry-run
-# Verify staging: ~/.sync-shuttle/remote/test/files/testdir/ exists
+bucketcast push -s test -S ./testdir/ --dry-run
+# Verify staging: ~/.bucketcast/remote/test/files/testdir/ exists
 
 # Without trailing slash should also work
-sync-shuttle push -s test -S ./testdir --dry-run
+bucketcast push -s test -S ./testdir --dry-run
 ```

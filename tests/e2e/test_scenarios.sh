@@ -3,22 +3,22 @@
 # END-TO-END TESTS - USER SCENARIOS
 #===============================================================================
 # Tests that verify complete user workflows from start to finish.
-# These tests run the actual sync-shuttle.sh script.
+# These tests run the actual bucketcast.sh script.
 #===============================================================================
 
-readonly SYNC_SHUTTLE="${PROJECT_ROOT}/sync-shuttle.sh"
+readonly BUCKETCAST="${PROJECT_ROOT}/bucketcast.sh"
 
 #===============================================================================
 # SETUP
 #===============================================================================
 setup_e2e() {
     export HOME="${TEST_DIR}/home"
-    export SYNC_BASE_DIR="${HOME}/.sync-shuttle"
+    export SYNC_BASE_DIR="${HOME}/.bucketcast"
     
     mkdir -p "$HOME"
     
     # Make script executable
-    chmod +x "$SYNC_SHUTTLE"
+    chmod +x "$BUCKETCAST"
 }
 
 #===============================================================================
@@ -29,7 +29,7 @@ test_e2e_init_creates_structure() {
     setup_e2e
     
     # Run init
-    "$SYNC_SHUTTLE" init &>/dev/null
+    "$BUCKETCAST" init &>/dev/null
     
     # Verify structure
     assert_dir_exists "$SYNC_BASE_DIR"
@@ -46,10 +46,10 @@ test_e2e_init_creates_config_files() {
     setup_e2e
     
     # Run init
-    "$SYNC_SHUTTLE" init &>/dev/null
+    "$BUCKETCAST" init &>/dev/null
     
     # Verify config files
-    assert_file_exists "${SYNC_BASE_DIR}/config/sync-shuttle.conf"
+    assert_file_exists "${SYNC_BASE_DIR}/config/bucketcast.conf"
     assert_file_exists "${SYNC_BASE_DIR}/config/servers.toml"
 }
 
@@ -57,7 +57,7 @@ test_e2e_init_creates_log_files() {
     setup_e2e
     
     # Run init
-    "$SYNC_SHUTTLE" init &>/dev/null
+    "$BUCKETCAST" init &>/dev/null
     
     # Verify log files
     assert_file_exists "${SYNC_BASE_DIR}/logs/sync.log"
@@ -68,8 +68,8 @@ test_e2e_init_is_idempotent() {
     setup_e2e
     
     # Run init twice
-    "$SYNC_SHUTTLE" init &>/dev/null
-    "$SYNC_SHUTTLE" init &>/dev/null
+    "$BUCKETCAST" init &>/dev/null
+    "$BUCKETCAST" init &>/dev/null
     
     # Should still work without errors
     assert_dir_exists "$SYNC_BASE_DIR"
@@ -83,7 +83,7 @@ test_e2e_help_shows_usage() {
     setup_e2e
     
     local output
-    output=$("$SYNC_SHUTTLE" --help 2>&1)
+    output=$("$BUCKETCAST" --help 2>&1)
     
     assert_contains "$output" "USAGE" "Help should show usage"
     assert_contains "$output" "COMMANDS" "Help should show commands"
@@ -94,9 +94,9 @@ test_e2e_version_shows_version() {
     setup_e2e
     
     local output
-    output=$("$SYNC_SHUTTLE" --version 2>&1)
+    output=$("$BUCKETCAST" --version 2>&1)
     
-    assert_contains "$output" "sync-shuttle" "Version should show name"
+    assert_contains "$output" "bucketcast" "Version should show name"
     assert_contains "$output" "version" "Version should show version word"
 }
 
@@ -108,11 +108,11 @@ test_e2e_list_servers_works() {
     setup_e2e
     
     # Init first
-    "$SYNC_SHUTTLE" init &>/dev/null
+    "$BUCKETCAST" init &>/dev/null
     
     # List servers
     local output
-    output=$("$SYNC_SHUTTLE" list servers 2>&1)
+    output=$("$BUCKETCAST" list servers 2>&1)
     
     # Should output something (even if empty)
     # At minimum should show header
@@ -123,10 +123,10 @@ test_e2e_list_files_requires_server() {
     setup_e2e
     
     # Init first
-    "$SYNC_SHUTTLE" init &>/dev/null
+    "$BUCKETCAST" init &>/dev/null
     
     # List files without server should fail
-    if "$SYNC_SHUTTLE" list files 2>/dev/null; then
+    if "$BUCKETCAST" list files 2>/dev/null; then
         echo "Should require server ID for list files"
         return 1
     fi
@@ -140,11 +140,11 @@ test_e2e_status_shows_info() {
     setup_e2e
     
     # Init first
-    "$SYNC_SHUTTLE" init &>/dev/null
+    "$BUCKETCAST" init &>/dev/null
     
     # Check status
     local output
-    output=$("$SYNC_SHUTTLE" status 2>&1)
+    output=$("$BUCKETCAST" status 2>&1)
     
     assert_contains "$output" "Status" "Should show status header"
 }
@@ -156,10 +156,10 @@ test_e2e_status_shows_info() {
 test_e2e_push_requires_server() {
     setup_e2e
     
-    "$SYNC_SHUTTLE" init &>/dev/null
+    "$BUCKETCAST" init &>/dev/null
     
     # Push without server should fail
-    if "$SYNC_SHUTTLE" push 2>/dev/null; then
+    if "$BUCKETCAST" push 2>/dev/null; then
         echo "Should require server for push"
         return 1
     fi
@@ -168,7 +168,7 @@ test_e2e_push_requires_server() {
 test_e2e_push_requires_source() {
     setup_e2e
     
-    "$SYNC_SHUTTLE" init &>/dev/null
+    "$BUCKETCAST" init &>/dev/null
     
     # Add a test server
     cat > "${SYNC_BASE_DIR}/config/servers.toml" << 'EOF'
@@ -184,7 +184,7 @@ declare -A server_test=(
 EOF
     
     # Push without source should fail
-    if "$SYNC_SHUTTLE" push --server test 2>/dev/null; then
+    if "$BUCKETCAST" push --server test 2>/dev/null; then
         echo "Should require source for push"
         return 1
     fi
@@ -193,7 +193,7 @@ EOF
 test_e2e_push_validates_source_exists() {
     setup_e2e
     
-    "$SYNC_SHUTTLE" init &>/dev/null
+    "$BUCKETCAST" init &>/dev/null
     
     # Add a test server
     cat > "${SYNC_BASE_DIR}/config/servers.toml" << 'EOF'
@@ -209,7 +209,7 @@ declare -A server_test=(
 EOF
     
     # Push with non-existent source should fail
-    if "$SYNC_SHUTTLE" push --server test --source /nonexistent/path 2>/dev/null; then
+    if "$BUCKETCAST" push --server test --source /nonexistent/path 2>/dev/null; then
         echo "Should validate source exists"
         return 1
     fi
@@ -218,7 +218,7 @@ EOF
 test_e2e_push_dry_run_makes_no_changes() {
     setup_e2e
     
-    "$SYNC_SHUTTLE" init &>/dev/null
+    "$BUCKETCAST" init &>/dev/null
     
     # Create test file
     local test_file="${TEST_DIR}/dry_run_test.txt"
@@ -231,7 +231,7 @@ declare -A server_test=(
     [host]="localhost"
     [port]="22"
     [user]="nobody"
-    [remote_base]="/tmp/sync-shuttle-test"
+    [remote_base]="/tmp/bucketcast-test"
     [enabled]="true"
     [s3_backup]="false"
 )
@@ -239,7 +239,7 @@ EOF
     
     # Dry run (will fail SSH but should show dry-run message)
     local output
-    output=$("$SYNC_SHUTTLE" push --server test --source "$test_file" --dry-run 2>&1) || true
+    output=$("$BUCKETCAST" push --server test --source "$test_file" --dry-run 2>&1) || true
     
     assert_contains "$output" "DRY" "Should indicate dry-run mode"
 }
@@ -251,10 +251,10 @@ EOF
 test_e2e_pull_requires_server() {
     setup_e2e
     
-    "$SYNC_SHUTTLE" init &>/dev/null
+    "$BUCKETCAST" init &>/dev/null
     
     # Pull without server should fail
-    if "$SYNC_SHUTTLE" pull 2>/dev/null; then
+    if "$BUCKETCAST" pull 2>/dev/null; then
         echo "Should require server for pull"
         return 1
     fi
@@ -267,7 +267,7 @@ test_e2e_pull_requires_server() {
 test_e2e_unknown_command_fails() {
     setup_e2e
     
-    if "$SYNC_SHUTTLE" unknowncommand 2>/dev/null; then
+    if "$BUCKETCAST" unknowncommand 2>/dev/null; then
         echo "Should fail for unknown command"
         return 1
     fi
@@ -276,7 +276,7 @@ test_e2e_unknown_command_fails() {
 test_e2e_invalid_option_fails() {
     setup_e2e
     
-    if "$SYNC_SHUTTLE" init --invalid-option 2>/dev/null; then
+    if "$BUCKETCAST" init --invalid-option 2>/dev/null; then
         echo "Should fail for invalid option"
         return 1
     fi
@@ -290,7 +290,7 @@ test_e2e_success_returns_zero() {
     setup_e2e
     
     local exit_code
-    "$SYNC_SHUTTLE" --help &>/dev/null
+    "$BUCKETCAST" --help &>/dev/null
     exit_code=$?
     
     assert_equals "$exit_code" "0" "Help should return exit code 0"
@@ -300,7 +300,7 @@ test_e2e_error_returns_nonzero() {
     setup_e2e
     
     local exit_code
-    "$SYNC_SHUTTLE" invalid 2>/dev/null || exit_code=$?
+    "$BUCKETCAST" invalid 2>/dev/null || exit_code=$?
     
     assert_not_equals "${exit_code:-0}" "0" "Error should return non-zero exit code"
 }
