@@ -1,15 +1,15 @@
-# Sync Shuttle - Project Specification
+# Bucketcast - Project Specification
 
 ## Project Intent
 
-Sync Shuttle is a **safe, idempotent file synchronization tool** designed for manual, 
+Bucketcast is a **safe, idempotent file synchronization tool** designed for manual, 
 on-demand file transfers between a home computer and remote servers. It prioritizes 
 safety over convenience, ensuring files are never accidentally deleted or overwritten.
 
 ## Key Assumptions
 
 1. **Manual Execution**: This is NOT a real-time sync daemon; it runs on-demand
-2. **Known Paths Only**: All operations are sandboxed to `~/.sync-shuttle/` directory
+2. **Known Paths Only**: All operations are sandboxed to `~/.bucketcast/` directory
 3. **SSH-Based**: Remote transfers use scp/rsync over SSH (keys recommended)
 4. **Single User**: Designed for personal use, not multi-tenant environments
 5. **Idempotent**: Running the same sync twice produces the same result safely
@@ -35,10 +35,10 @@ safety over convenience, ensuring files are never accidentally deleted or overwr
 - No overwrites without `--force` flag
 
 ### 2. Sandboxed Operations
-- All files stored in `~/.sync-shuttle/`
-- Structure: `~/.sync-shuttle/remote/<server_id>/files/`
-- Local shares: `~/.sync-shuttle/local/outbox/` (global/ or <server_id>/)
-- Incoming files: `~/.sync-shuttle/local/inbox/`
+- All files stored in `~/.bucketcast/`
+- Structure: `~/.bucketcast/remote/<server_id>/files/`
+- Local shares: `~/.bucketcast/local/outbox/` (global/ or <server_id>/)
+- Incoming files: `~/.bucketcast/local/inbox/`
 
 ### 3. Comprehensive Logging
 - UUID per operation
@@ -70,9 +70,9 @@ safety over convenience, ensuring files are never accidentally deleted or overwr
 ## Directory Structure (Runtime)
 
 ```
-~/.sync-shuttle/
+~/.bucketcast/
 ├── config/
-│   ├── sync-shuttle.conf      # Main configuration
+│   ├── bucketcast.conf      # Main configuration
 │   └── servers.toml           # Server definitions
 ├── remote/
 │   └── <server_id>/
@@ -102,7 +102,7 @@ ServerConfig {
     port: integer (1-65535, default: 22)
     user: string (SSH username)
     identity_file: string (path to SSH key, optional)
-    remote_base: string (remote sync-shuttle path)
+    remote_base: string (remote bucketcast path)
     enabled: boolean
     s3_backup: boolean (optional)
 }
@@ -180,7 +180,7 @@ LogEntry {
 
 ## Safety Mechanisms
 
-1. **Path Validation**: All paths must be within `~/.sync-shuttle/`
+1. **Path Validation**: All paths must be within `~/.bucketcast/`
 2. **No Deletion**: Tool never deletes files (archive only)
 3. **Collision Detection**: Check for existing files before write
 4. **Dry Run Default**: Recommend dry-run for first use

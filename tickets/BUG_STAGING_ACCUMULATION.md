@@ -9,24 +9,24 @@
 
 ## Summary
 
-The push staging directory (`~/.sync-shuttle/remote/<server>/files/`) accumulates files across pushes. Each subsequent push re-syncs ALL previously staged files to the remote, not just the new ones.
+The push staging directory (`~/.bucketcast/remote/<server>/files/`) accumulates files across pushes. Each subsequent push re-syncs ALL previously staged files to the remote, not just the new ones.
 
 ## Steps to Reproduce
 
 ```bash
 # Day 1: Push 10 files
-sync-shuttle push -s myserver file1 file2 ... file10
+bucketcast push -s myserver file1 file2 ... file10
 # Result: 10 files synced ✓
 
 # Day 2: Push 1 new file
-sync-shuttle push -s myserver newfile.txt
+bucketcast push -s myserver newfile.txt
 # Expected: 1 file synced
 # Actual: 11 files synced (10 old + 1 new)
 ```
 
 ## Root Cause
 
-1. Files are staged to persistent directory: `~/.sync-shuttle/remote/<server>/files/`
+1. Files are staged to persistent directory: `~/.bucketcast/remote/<server>/files/`
 2. `sync_to_remote()` syncs entire staging directory to remote
 3. No cleanup after successful sync
 4. Staging accumulates indefinitely
@@ -71,7 +71,7 @@ staging_dir="${REMOTE_DIR}/${SERVER_ID}/push-${OPERATION_UUID}"
 
 ### Implementation:
 
-**In `action_push()` (sync-shuttle.sh:954-990):**
+**In `action_push()` (bucketcast.sh:954-990):**
 
 ```bash
 # Create operation-specific staging directory under server's remote dir
@@ -91,13 +91,13 @@ rm -rf "$staging_dir"
 
 **Cleanup on failure/interrupt:**
 - Failed operations leave staging for debugging
-- Can be manually cleaned: `rm -rf ~/.sync-shuttle/remote/*/push-*`
+- Can be manually cleaned: `rm -rf ~/.bucketcast/remote/*/push-*`
 
 ### Migration:
 
 Old staging dirs can be cleaned manually or via future `cleanup` command:
 ```bash
-rm -rf ~/.sync-shuttle/remote/*/files/*
+rm -rf ~/.bucketcast/remote/*/files/*
 ```
 
 ## Safety Checklist

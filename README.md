@@ -1,4 +1,4 @@
-# Sync Shuttle
+# Bucketcast
 
 **Safe, Idempotent File Synchronization for Manual Transfers**
 
@@ -8,7 +8,7 @@
 curl -fsSL https://raw.githubusercontent.com/kaurifund/bucketcast/main/install.sh | bash
 ```
 
-That's it. This installs to `~/.local/share/sync-shuttle/`, adds it to your PATH, and sets up everything including the TUI.
+That's it. This installs to `~/.local/share/bucketcast/`, adds it to your PATH, and sets up everything including the TUI.
 
 ### Install from a branch
 
@@ -22,12 +22,12 @@ Replace `BRANCH_NAME` with the branch (e.g., `feature/outbox-inbox-symmetry`).
 
 ---
 
-Sync Shuttle is a command-line tool for safely transferring files between your home computer and remote servers. It prioritizes safety and auditability over speed, ensuring files are never accidentally deleted or overwritten.
+Bucketcast is a command-line tool for safely transferring files between your home computer and remote servers. It prioritizes safety and auditability over speed, ensuring files are never accidentally deleted or overwritten.
 
 ## Features
 
 - 🔒 **Safe by Design**: Never deletes files, never overwrites without consent
-- 📁 **Sandboxed Operations**: All files stored in `~/.sync-shuttle/`
+- 📁 **Sandboxed Operations**: All files stored in `~/.bucketcast/`
 - 🔄 **Bidirectional Sync**: Push to and pull from remote servers
 - 📝 **Comprehensive Logging**: JSON and human-readable logs
 - 🎯 **Idempotent**: Safe to run multiple times
@@ -42,13 +42,13 @@ curl -fsSL https://raw.githubusercontent.com/kaurifund/bucketcast/main/install.s
 source ~/.bashrc  # or restart your shell
 
 # 2. Configure a server
-nano ~/.sync-shuttle/config/servers.toml
+nano ~/.bucketcast/config/servers.toml
 
 # 3. Test with dry-run
-sync-shuttle push --server myserver --source ~/myfile.txt --dry-run
+bucketcast push --server myserver --source ~/myfile.txt --dry-run
 
 # 4. Execute
-sync-shuttle push --server myserver --source ~/myfile.txt
+bucketcast push --server myserver --source ~/myfile.txt
 ```
 
 ## Requirements
@@ -65,12 +65,12 @@ sync-shuttle push --server myserver --source ~/myfile.txt
 
 ## Directory Structure
 
-After initialization, Sync Shuttle creates:
+After initialization, Bucketcast creates:
 
 ```
-~/.sync-shuttle/
+~/.bucketcast/
 ├── config/
-│   ├── sync-shuttle.conf    # Main configuration
+│   ├── bucketcast.conf    # Main configuration
 │   └── servers.toml         # Server definitions
 ├── remote/
 │   └── <server_id>/
@@ -122,41 +122,41 @@ After initialization, Sync Shuttle creates:
 
 ```bash
 # Push a single file
-sync-shuttle.sh push -s myserver -S ~/document.pdf
+bucketcast.sh push -s myserver -S ~/document.pdf
 
 # Push a directory
-sync-shuttle.sh push -s myserver -S ~/projects/myapp/
+bucketcast.sh push -s myserver -S ~/projects/myapp/
 
 # Pull from a server
-sync-shuttle.sh pull -s myserver
+bucketcast.sh pull -s myserver
 
 # Dry-run (always recommended first!)
-sync-shuttle.sh push -s myserver -S ~/data.zip --dry-run
+bucketcast.sh push -s myserver -S ~/data.zip --dry-run
 
 # Force overwrite (archives existing)
-sync-shuttle.sh push -s myserver -S ~/updated.txt --force
+bucketcast.sh push -s myserver -S ~/updated.txt --force
 
 # With S3 archival
-sync-shuttle.sh push -s myserver -S ~/backup/ --s3-archive
+bucketcast.sh push -s myserver -S ~/backup/ --s3-archive
 
 # Share a file globally (all servers can pull)
-sync-shuttle share --global -S ~/shared-doc.pdf
+bucketcast share --global -S ~/shared-doc.pdf
 
 # Share with a specific server
-sync-shuttle share -s myserver -S ~/for-myserver.txt
+bucketcast share -s myserver -S ~/for-myserver.txt
 
 # List all shared files
-sync-shuttle share --list
+bucketcast share --list
 
 # Remove a file from global share
-sync-shuttle share --global --remove -S shared-doc.pdf
+bucketcast share --global --remove -S shared-doc.pdf
 ```
 
 ## Configuration
 
 ### Server Configuration
 
-Edit `~/.sync-shuttle/config/servers.toml`:
+Edit `~/.bucketcast/config/servers.toml`:
 
 ```toml
 [servers.myserver]
@@ -165,7 +165,7 @@ host = "192.168.1.100"
 port = 22
 user = "myuser"
 identity_file = "~/.ssh/id_rsa"  # optional
-remote_base = "/home/myuser/.sync-shuttle"
+remote_base = "/home/myuser/.bucketcast"
 enabled = true
 s3_backup = false
 
@@ -175,14 +175,14 @@ host = "ec2-12-34-56-78.compute-1.amazonaws.com"
 port = 22
 user = "ec2-user"
 identity_file = "~/.ssh/my-key.pem"
-remote_base = "/home/ec2-user/.sync-shuttle"
+remote_base = "/home/ec2-user/.bucketcast"
 enabled = true
 s3_backup = true
 ```
 
 ### Main Configuration
 
-Edit `~/.sync-shuttle/config/sync-shuttle.conf`:
+Edit `~/.bucketcast/config/bucketcast.conf`:
 
 ```bash
 # Log level: DEBUG, INFO, WARN, ERROR
@@ -197,12 +197,12 @@ ARCHIVE_RETENTION_DAYS=30
 # S3 settings (optional)
 S3_ENABLED="true"
 S3_BUCKET="my-backup-bucket"
-S3_PREFIX="sync-shuttle-archive"
+S3_PREFIX="bucketcast-archive"
 ```
 
 ## Safety Features
 
-1. **Path Validation**: All paths must be within `~/.sync-shuttle/`
+1. **Path Validation**: All paths must be within `~/.bucketcast/`
 2. **No Deletion**: The tool never deletes files
 3. **No Overwrites**: Existing files are never overwritten without `--force`
 4. **Confirmation Prompts**: Force mode requires explicit confirmation
@@ -215,18 +215,18 @@ S3_PREFIX="sync-shuttle-archive"
 Enable S3 for cloud backup:
 
 ```bash
-# In sync-shuttle.conf
+# In bucketcast.conf
 S3_ENABLED="true"
-S3_BUCKET="my-sync-shuttle-bucket"
+S3_BUCKET="my-bucketcast-bucket"
 S3_PREFIX="archive"
 
 # Use with any sync
-sync-shuttle.sh push -s myserver -S ~/data/ --s3-archive
+bucketcast.sh push -s myserver -S ~/data/ --s3-archive
 
 # Or use S3 as intermediate layer
-sync-shuttle.sh s3-push -s myserver -S ~/data/
+bucketcast.sh s3-push -s myserver -S ~/data/
 # On another machine:
-sync-shuttle.sh s3-pull --transfer-id <uuid>
+bucketcast.sh s3-pull --transfer-id <uuid>
 ```
 
 ## TUI (Terminal User Interface)
@@ -234,7 +234,7 @@ sync-shuttle.sh s3-pull --transfer-id <uuid>
 Launch the interactive interface:
 
 ```bash
-sync-shuttle tui
+bucketcast tui
 ```
 
 The TUI is automatically set up by the installer (isolated Python venv, no global packages).
@@ -251,7 +251,7 @@ The TUI provides:
 
 ```
 [2024-01-15 10:30:45] [INFO] Starting PUSH operation [abc123-...]
-[2024-01-15 10:30:46] [INFO] Transferring: ~/file.txt -> ~/.sync-shuttle/remote/myserver/files/
+[2024-01-15 10:30:46] [INFO] Transferring: ~/file.txt -> ~/.bucketcast/remote/myserver/files/
 [2024-01-15 10:30:50] [SUCCESS] Push operation completed
 ```
 
@@ -265,10 +265,10 @@ The TUI provides:
 
 ```bash
 # Recent operations
-tail -f ~/.sync-shuttle/logs/sync.log
+tail -f ~/.bucketcast/logs/sync.log
 
 # Parse JSON logs (requires jq)
-cat ~/.sync-shuttle/logs/sync.jsonl | jq 'select(.status=="FAILED")'
+cat ~/.bucketcast/logs/sync.jsonl | jq 'select(.status=="FAILED")'
 ```
 
 ## Exit Codes
@@ -301,17 +301,17 @@ ssh-copy-id -p 22 user@host
 
 ```bash
 # Check directory permissions
-ls -la ~/.sync-shuttle/
+ls -la ~/.bucketcast/
 
 # Fix if needed
-chmod -R u+rwX ~/.sync-shuttle/
+chmod -R u+rwX ~/.bucketcast/
 ```
 
 ### Rsync Errors
 
 ```bash
 # Run with verbose
-sync-shuttle.sh push -s myserver -S ~/file.txt --verbose
+bucketcast.sh push -s myserver -S ~/file.txt --verbose
 
 # Common fixes:
 # - Ensure rsync is installed on remote

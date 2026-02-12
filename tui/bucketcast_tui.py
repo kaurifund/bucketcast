@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Sync Shuttle - Terminal User Interface
+Bucketcast - Terminal User Interface
 =======================================
 
 A clean, intuitive interface for file synchronization.
 Designed with clarity, simplicity, and user experience in mind.
 
 Usage:
-    python3 sync_tui.py [--base-dir ~/.sync-shuttle]
+    python3 bucketcast_tui.py [--base-dir ~/.bucketcast]
 """
 
 import argparse
@@ -49,7 +49,7 @@ except ImportError:
 
 HELP_TEXT = """
 [bold cyan]═══════════════════════════════════════════════════════════════════════════════[/bold cyan]
-[bold cyan]                           SYNC SHUTTLE - HELP                                  [/bold cyan]
+[bold cyan]                           BUCKETCAST - HELP                                  [/bold cyan]
 [bold cyan]═══════════════════════════════════════════════════════════════════════════════[/bold cyan]
 
 [bold yellow]KEYBOARD SHORTCUTS[/bold yellow]
@@ -72,9 +72,9 @@ HELP_TEXT = """
 
 [bold yellow]DIRECTORY STRUCTURE[/bold yellow]
 ────────────────────────────────────────────────────────────────────────────────
-  ~/.sync-shuttle/
+  ~/.bucketcast/
   ├── config/
-  │   ├── sync-shuttle.conf     Main configuration
+  │   ├── bucketcast.conf     Main configuration
   │   └── servers.toml          Server definitions
   ├── local/
   │   ├── inbox/<server>/       Files received from each server
@@ -87,68 +87,68 @@ HELP_TEXT = """
 
 [bold yellow]CLI COMMANDS[/bold yellow]
 ────────────────────────────────────────────────────────────────────────────────
-  [bold]sync-shuttle init[/bold]
+  [bold]bucketcast init[/bold]
       Initialize directory structure (run once)
 
-  [bold]sync-shuttle push -s <server> -S <file>[/bold]
+  [bold]bucketcast push -s <server> -S <file>[/bold]
       Push a file to a server's inbox
       Add --dry-run to preview without executing
       Add --force to allow overwrites
 
-  [bold]sync-shuttle pull -s <server>[/bold]
+  [bold]bucketcast pull -s <server>[/bold]
       Pull files from a server's outbox (global + your hostname)
       Add --dry-run to preview
 
-  [bold]sync-shuttle share --global -S <file>[/bold]
+  [bold]bucketcast share --global -S <file>[/bold]
       Share a file with ALL servers (goes to outbox/global/)
 
-  [bold]sync-shuttle share -s <server> -S <file>[/bold]
+  [bold]bucketcast share -s <server> -S <file>[/bold]
       Share a file with a SPECIFIC server (goes to outbox/<server>/)
 
-  [bold]sync-shuttle share --list[/bold]
+  [bold]bucketcast share --list[/bold]
       List all currently shared files
 
-  [bold]sync-shuttle share --remove --global -S <file>[/bold]
+  [bold]bucketcast share --remove --global -S <file>[/bold]
       Remove a file from global share
 
-  [bold]sync-shuttle list servers[/bold]
+  [bold]bucketcast list servers[/bold]
       List all configured servers
 
-  [bold]sync-shuttle list files -s <server>[/bold]
+  [bold]bucketcast list files -s <server>[/bold]
       List files synced with a server
 
-  [bold]sync-shuttle status[/bold]
+  [bold]bucketcast status[/bold]
       Show sync status and recent operations
 
-  [bold]sync-shuttle tui[/bold]
+  [bold]bucketcast tui[/bold]
       Launch this interactive interface
 
 [bold yellow]WORKFLOW EXAMPLES[/bold yellow]
 ────────────────────────────────────────────────────────────────────────────────
   [bold]Send a file to a colleague:[/bold]
-    sync-shuttle push -s their-server -S ~/document.pdf
+    bucketcast push -s their-server -S ~/document.pdf
 
   [bold]Receive files from a colleague:[/bold]
-    sync-shuttle pull -s their-server
-    ls ~/.sync-shuttle/local/inbox/their-server/
+    bucketcast pull -s their-server
+    ls ~/.bucketcast/local/inbox/their-server/
 
   [bold]Share a file for anyone to pull:[/bold]
-    sync-shuttle share --global -S ~/shared-notes.txt
+    bucketcast share --global -S ~/shared-notes.txt
 
   [bold]Check what you're sharing:[/bold]
-    sync-shuttle share --list
+    bucketcast share --list
 
 [bold yellow]SAFETY FEATURES[/bold yellow]
 ────────────────────────────────────────────────────────────────────────────────
-  • All files stay in ~/.sync-shuttle/ (sandboxed)
-  • Files are NEVER deleted by sync-shuttle
+  • All files stay in ~/.bucketcast/ (sandboxed)
+  • Files are NEVER deleted by bucketcast
   • Existing files are NEVER overwritten without --force
   • Use --dry-run to preview any operation
   • All operations are logged
 
 [bold yellow]CONFIGURATION[/bold yellow]
 ────────────────────────────────────────────────────────────────────────────────
-  Edit servers: ~/.sync-shuttle/config/servers.toml
+  Edit servers: ~/.bucketcast/config/servers.toml
 
   Example server entry:
     [servers.myserver]
@@ -156,7 +156,7 @@ HELP_TEXT = """
     host = "192.168.1.100"
     port = 22
     user = "myuser"
-    remote_base = "/home/myuser/.sync-shuttle"
+    remote_base = "/home/myuser/.bucketcast"
     enabled = true
 
 [bold cyan]═══════════════════════════════════════════════════════════════════════════════[/bold cyan]
@@ -575,8 +575,8 @@ class QuickPullDialog(ModalScreen):
 # MAIN APPLICATION
 # =============================================================================
 
-class SyncShuttleTUI(App):
-    """Sync Shuttle - Clean, intuitive file synchronization."""
+class BucketcastTUI(App):
+    """Bucketcast - Clean, intuitive file synchronization."""
 
     CSS = """
     /* Global */
@@ -765,7 +765,7 @@ class SyncShuttleTUI(App):
     /* Scrollable areas - no height constraint, let content size naturally */
     """
 
-    TITLE = "Sync Shuttle"
+    TITLE = "Bucketcast"
     BINDINGS = [
         Binding("q", "quit", "Quit"),
         Binding("r", "refresh", "Refresh"),
@@ -804,7 +804,7 @@ class SyncShuttleTUI(App):
                         icon="📡",
                         title="No Servers Configured",
                         subtitle="Add servers to start syncing files",
-                        action="Edit ~/.sync-shuttle/config/servers.toml"
+                        action="Edit ~/.bucketcast/config/servers.toml"
                     )
                 else:
                     yield Static("[bold]Your Servers[/bold]\n", classes="section-title")
@@ -958,7 +958,7 @@ class SyncShuttleTUI(App):
         self._execute_share(target, source)
 
     def _execute_push(self, server_id: str, source: str) -> None:
-        script = Path(__file__).parent.parent / "sync-shuttle.sh"
+        script = Path(__file__).parent.parent / "bucketcast.sh"
         args = ["push", "--server", server_id, "--source", source]
         self.notify(f"Pushing to {server_id}...", timeout=2)
         try:
@@ -976,7 +976,7 @@ class SyncShuttleTUI(App):
             self.notify(f"Error: {e}", severity="error")
 
     def _execute_pull(self, server_id: str) -> None:
-        script = Path(__file__).parent.parent / "sync-shuttle.sh"
+        script = Path(__file__).parent.parent / "bucketcast.sh"
         args = ["pull", "--server", server_id]
         self.notify(f"Pulling from {server_id}...", timeout=2)
         try:
@@ -995,7 +995,7 @@ class SyncShuttleTUI(App):
             self.notify(f"Error: {e}", severity="error")
 
     def _execute_share(self, target: str, source: str) -> None:
-        script = Path(__file__).parent.parent / "sync-shuttle.sh"
+        script = Path(__file__).parent.parent / "bucketcast.sh"
         if target == "global":
             args = ["share", "--global", "--source", source]
         else:
@@ -1022,12 +1022,12 @@ class SyncShuttleTUI(App):
 # =============================================================================
 
 def main():
-    parser = argparse.ArgumentParser(description="Sync Shuttle TUI")
+    parser = argparse.ArgumentParser(description="Bucketcast TUI")
     parser.add_argument(
         "--base-dir",
         type=Path,
-        default=Path.home() / ".sync-shuttle",
-        help="Base directory for sync-shuttle"
+        default=Path.home() / ".bucketcast",
+        help="Base directory for bucketcast"
     )
     parser.add_argument(
         "--config-dir",
@@ -1044,10 +1044,10 @@ def main():
 
     if not base_dir.exists():
         print(f"Error: Base directory does not exist: {base_dir}")
-        print("Run 'sync-shuttle init' first.")
+        print("Run 'bucketcast init' first.")
         sys.exit(1)
 
-    app = SyncShuttleTUI(base_dir, config_dir)
+    app = BucketcastTUI(base_dir, config_dir)
     app.run()
 
 

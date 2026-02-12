@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 #===============================================================================
-# SYNC SHUTTLE - INSTALLER
+# BUCKETCAST - INSTALLER
 #===============================================================================
-# Install sync-shuttle with: curl -fsSL https://raw.githubusercontent.com/USER/sync-shuttle/main/install.sh | bash
+# Install bucketcast with: curl -fsSL https://raw.githubusercontent.com/USER/bucketcast/main/install.sh | bash
 #
 # Options (via environment variables):
-#   SYNC_SHUTTLE_DIR    Installation directory (default: ~/.local/share/sync-shuttle)
-#   SYNC_SHUTTLE_BRANCH Git branch to install (default: main)
-#   SYNC_SHUTTLE_NO_RC  Skip shell RC file modification (default: false)
+#   BUCKETCAST_DIR    Installation directory (default: ~/.local/share/bucketcast)
+#   BUCKETCAST_BRANCH Git branch to install (default: main)
+#   BUCKETCAST_NO_RC  Skip shell RC file modification (default: false)
 #
 # Examples:
 #   curl -fsSL URL/install.sh | bash
-#   curl -fsSL URL/install.sh | SYNC_SHUTTLE_DIR=/opt/sync-shuttle bash
-#   curl -fsSL URL/install.sh | SYNC_SHUTTLE_NO_RC=1 bash
+#   curl -fsSL URL/install.sh | BUCKETCAST_DIR=/opt/bucketcast bash
+#   curl -fsSL URL/install.sh | BUCKETCAST_NO_RC=1 bash
 #===============================================================================
 
 set -o errexit
@@ -22,13 +22,13 @@ set -o pipefail
 #===============================================================================
 # CONFIGURATION
 #===============================================================================
-readonly REPO_URL="${SYNC_SHUTTLE_REPO:-https://github.com/kaurifund/bucketcast}"
+readonly REPO_URL="${BUCKETCAST_REPO:-https://github.com/kaurifund/bucketcast}"
 # TODO: Uncomment below and delete feature branch line when merging to main
-#readonly BRANCH="${SYNC_SHUTTLE_BRANCH:-main}"
-readonly BRANCH="${SYNC_SHUTTLE_BRANCH:-feature/outbox-inbox-symmetry}"
-readonly INSTALL_DIR="${SYNC_SHUTTLE_DIR:-$HOME/.local/share/sync-shuttle}"
+#readonly BRANCH="${BUCKETCAST_BRANCH:-main}"
+readonly BRANCH="${BUCKETCAST_BRANCH:-feature/outbox-inbox-symmetry}"
+readonly INSTALL_DIR="${BUCKETCAST_DIR:-$HOME/.local/share/bucketcast}"
 readonly BIN_DIR="${HOME}/.local/bin"
-readonly NO_RC="${SYNC_SHUTTLE_NO_RC:-false}"
+readonly NO_RC="${BUCKETCAST_NO_RC:-false}"
 
 # Colors
 if [[ -t 1 ]]; then
@@ -82,7 +82,7 @@ detect_shell_rc() {
 download_release() {
     local dest="$1"
     
-    info "Downloading sync-shuttle..."
+    info "Downloading bucketcast..."
     
     if command -v git &>/dev/null; then
         git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$dest" 2>/dev/null || \
@@ -108,20 +108,20 @@ install_binary() {
     mkdir -p "$BIN_DIR"
     
     # Create wrapper script
-    cat > "${BIN_DIR}/sync-shuttle" << EOF
+    cat > "${BIN_DIR}/bucketcast" << EOF
 #!/usr/bin/env bash
-exec "${INSTALL_DIR}/sync-shuttle.sh" "\$@"
+exec "${INSTALL_DIR}/bucketcast.sh" "\$@"
 EOF
     
-    chmod +x "${BIN_DIR}/sync-shuttle"
-    chmod +x "${INSTALL_DIR}/sync-shuttle.sh"
+    chmod +x "${BIN_DIR}/bucketcast"
+    chmod +x "${INSTALL_DIR}/bucketcast.sh"
     
-    success "Installed sync-shuttle to ${BIN_DIR}/sync-shuttle"
+    success "Installed bucketcast to ${BIN_DIR}/bucketcast"
 }
 
 update_shell_rc() {
     if [[ "$NO_RC" == "true" || "$NO_RC" == "1" ]]; then
-        warn "Skipping shell RC modification (SYNC_SHUTTLE_NO_RC=true)"
+        warn "Skipping shell RC modification (BUCKETCAST_NO_RC=true)"
         return
     fi
     
@@ -143,16 +143,16 @@ update_shell_rc() {
     
     # Add to rc file
     echo "" >> "$rc_file"
-    echo "# Added by sync-shuttle installer" >> "$rc_file"
+    echo "# Added by bucketcast installer" >> "$rc_file"
     echo "$path_line" >> "$rc_file"
     
     success "Added ~/.local/bin to PATH in $rc_file"
 }
 
-initialize_sync_shuttle() {
-    info "Initializing sync-shuttle..."
+initialize_bucketcast() {
+    info "Initializing bucketcast..."
 
-    "${INSTALL_DIR}/sync-shuttle.sh" init || warn "Initialization skipped (may already exist)"
+    "${INSTALL_DIR}/bucketcast.sh" init || warn "Initialization skipped (may already exist)"
 }
 
 setup_python_venv() {
@@ -186,12 +186,12 @@ setup_python_venv() {
 print_completion() {
     echo ""
     echo -e "${BOLD}════════════════════════════════════════════════════════════${RESET}"
-    echo -e "${GREEN}${BOLD}Sync Shuttle installed successfully!${RESET}"
+    echo -e "${GREEN}${BOLD}Bucketcast installed successfully!${RESET}"
     echo -e "${BOLD}════════════════════════════════════════════════════════════${RESET}"
     echo ""
     echo "Installation directory: ${INSTALL_DIR}"
-    echo "Binary location:        ${BIN_DIR}/sync-shuttle"
-    echo "Data directory:         ~/.sync-shuttle/"
+    echo "Binary location:        ${BIN_DIR}/bucketcast"
+    echo "Data directory:         ~/.bucketcast/"
     echo ""
     echo -e "${BOLD}Quick Start:${RESET}"
     echo ""
@@ -199,13 +199,13 @@ print_completion() {
     echo "     source $(detect_shell_rc)"
     echo ""
     echo "  2. Configure a server:"
-    echo "     nano ~/.sync-shuttle/config/servers.toml"
+    echo "     nano ~/.bucketcast/config/servers.toml"
     echo ""
     echo "  3. Test with dry-run:"
-    echo "     sync-shuttle push -s myserver -S ~/file.txt --dry-run"
+    echo "     bucketcast push -s myserver -S ~/file.txt --dry-run"
     echo ""
     echo "  4. (Optional) Launch the TUI:"
-    echo "     sync-shuttle tui"
+    echo "     bucketcast tui"
     echo ""
     echo -e "${BOLD}Documentation:${RESET} ${INSTALL_DIR}/README.md"
     echo ""
@@ -227,7 +227,7 @@ print_completion() {
 main() {
     echo ""
     echo -e "${BOLD}╔═══════════════════════════════════════════════════════════╗${RESET}"
-    echo -e "${BOLD}║           SYNC SHUTTLE INSTALLER                          ║${RESET}"
+    echo -e "${BOLD}║           BUCKETCAST INSTALLER                          ║${RESET}"
     echo -e "${BOLD}╚═══════════════════════════════════════════════════════════╝${RESET}"
     echo ""
     
@@ -258,7 +258,7 @@ main() {
     update_shell_rc
 
     # Initialize
-    initialize_sync_shuttle
+    initialize_bucketcast
 
     # Done
     print_completion
