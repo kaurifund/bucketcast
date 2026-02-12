@@ -88,6 +88,207 @@ test_validate_path_within_sandbox_rejects_symlink_escape() {
     fi
 }
 
+#===============================================================================
+# SERVER CONFIGURATION VALIDATION TESTS
+#===============================================================================
+
+test_validate_server_config_valid() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'
+server_base='/home/testuser/bucketcast'
+server_port='22'
+server_enabled='true'"
+    
+    if ! validate_server_config "$server_name" "$config_data"; then
+        echo "Should accept valid server configuration"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_host() {
+    local server_name="test-server"
+    local config_data="server_user='testuser'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_host"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_user() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_user"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_base() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_base"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_valid() {
+    if ! validate_server_host "example.com" "test-server"; then
+        echo "Should accept valid hostname"
+        return 1
+    fi
+    
+    if ! validate_server_host "192.168.1.1" "test-server"; then
+        echo "Should accept valid IP address"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_invalid() {
+    if validate_server_host "" "test-server" 2>/dev/null; then
+        echo "Should reject empty hostname"
+        return 1
+    fi
+    
+    if validate_server_host "invalid..hostname" "test-server" 2>/dev/null; then
+        echo "Should reject invalid hostname format"
+        return 1
+    fi
+    
+    if validate_server_host "0.0.0.0" "test-server" 2>/dev/null; then
+        echo "Should reject invalid IP 0.0.0.0"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_valid() {
+    if ! validate_server_port "22" "test-server"; then
+        echo "Should accept valid port 22"
+        return 1
+    fi
+    
+    if ! validate_server_port "8080" "test-server"; then
+        echo "Should accept valid port 8080"
+        return 1
+    fi
+    
+    if ! validate_server_port "" "test-server"; then
+        echo "Should accept empty port (defaults to 22)"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_invalid() {
+    if validate_server_port "abc" "test-server" 2>/dev/null; then
+        echo "Should reject non-numeric port"
+        return 1
+    fi
+    
+    if validate_server_port "0" "test-server" 2>/dev/null; then
+        echo "Should reject port 0"
+        return 1
+    fi
+    
+    if validate_server_port "65536" "test-server" 2>/dev/null; then
+        echo "Should reject port > 65535"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_valid() {
+    if ! validate_server_user "testuser" "test-server"; then
+        echo "Should accept valid username"
+        return 1
+    fi
+    
+    if ! validate_server_user "test-user" "test-server"; then
+        echo "Should accept username with dash"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_invalid() {
+    if validate_server_user "" "test-server" 2>/dev/null; then
+        echo "Should reject empty username"
+        return 1
+    fi
+    
+    if validate_server_user "Test-User" "test-server" 2>/dev/null; then
+        echo "Should reject username with uppercase"
+        return 1
+    fi
+    
+    if validate_server_user "123user" "test-server" 2>/dev/null; then
+        echo "Should reject username starting with number"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_valid() {
+    if ! validate_server_enabled "true" "test-server"; then
+        echo "Should accept 'true'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "false" "test-server"; then
+        echo "Should accept 'false'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "yes" "test-server"; then
+        echo "Should accept 'yes'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "no" "test-server"; then
+        echo "Should accept 'no'"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_invalid() {
+    if validate_server_enabled "maybe" "test-server" 2>/dev/null; then
+        echo "Should reject invalid enabled value"
+        return 1
+    fi
+    
+    if validate_server_enabled "2" "test-server" 2>/dev/null; then
+        echo "Should reject numeric value > 1"
+        return 1
+    fi
+    
+    return 0
+}
+
 test_validate_path_within_sandbox_rejects_prefix_attack() {
     export SYNC_BASE_DIR="${TEST_DIR}/sandbox"
     mkdir -p "$SYNC_BASE_DIR"
@@ -124,6 +325,207 @@ test_validate_path_within_sandbox_handles_relative_paths() {
 }
 
 #===============================================================================
+# SERVER CONFIGURATION VALIDATION TESTS
+#===============================================================================
+
+test_validate_server_config_valid() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'
+server_base='/home/testuser/bucketcast'
+server_port='22'
+server_enabled='true'"
+    
+    if ! validate_server_config "$server_name" "$config_data"; then
+        echo "Should accept valid server configuration"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_host() {
+    local server_name="test-server"
+    local config_data="server_user='testuser'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_host"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_user() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_user"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_base() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_base"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_valid() {
+    if ! validate_server_host "example.com" "test-server"; then
+        echo "Should accept valid hostname"
+        return 1
+    fi
+    
+    if ! validate_server_host "192.168.1.1" "test-server"; then
+        echo "Should accept valid IP address"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_invalid() {
+    if validate_server_host "" "test-server" 2>/dev/null; then
+        echo "Should reject empty hostname"
+        return 1
+    fi
+    
+    if validate_server_host "invalid..hostname" "test-server" 2>/dev/null; then
+        echo "Should reject invalid hostname format"
+        return 1
+    fi
+    
+    if validate_server_host "0.0.0.0" "test-server" 2>/dev/null; then
+        echo "Should reject invalid IP 0.0.0.0"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_valid() {
+    if ! validate_server_port "22" "test-server"; then
+        echo "Should accept valid port 22"
+        return 1
+    fi
+    
+    if ! validate_server_port "8080" "test-server"; then
+        echo "Should accept valid port 8080"
+        return 1
+    fi
+    
+    if ! validate_server_port "" "test-server"; then
+        echo "Should accept empty port (defaults to 22)"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_invalid() {
+    if validate_server_port "abc" "test-server" 2>/dev/null; then
+        echo "Should reject non-numeric port"
+        return 1
+    fi
+    
+    if validate_server_port "0" "test-server" 2>/dev/null; then
+        echo "Should reject port 0"
+        return 1
+    fi
+    
+    if validate_server_port "65536" "test-server" 2>/dev/null; then
+        echo "Should reject port > 65535"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_valid() {
+    if ! validate_server_user "testuser" "test-server"; then
+        echo "Should accept valid username"
+        return 1
+    fi
+    
+    if ! validate_server_user "test-user" "test-server"; then
+        echo "Should accept username with dash"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_invalid() {
+    if validate_server_user "" "test-server" 2>/dev/null; then
+        echo "Should reject empty username"
+        return 1
+    fi
+    
+    if validate_server_user "Test-User" "test-server" 2>/dev/null; then
+        echo "Should reject username with uppercase"
+        return 1
+    fi
+    
+    if validate_server_user "123user" "test-server" 2>/dev/null; then
+        echo "Should reject username starting with number"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_valid() {
+    if ! validate_server_enabled "true" "test-server"; then
+        echo "Should accept 'true'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "false" "test-server"; then
+        echo "Should accept 'false'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "yes" "test-server"; then
+        echo "Should accept 'yes'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "no" "test-server"; then
+        echo "Should accept 'no'"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_invalid() {
+    if validate_server_enabled "maybe" "test-server" 2>/dev/null; then
+        echo "Should reject invalid enabled value"
+        return 1
+    fi
+    
+    if validate_server_enabled "2" "test-server" 2>/dev/null; then
+        echo "Should reject numeric value > 1"
+        return 1
+    fi
+    
+    return 0
+}
+
+#===============================================================================
 # ENVIRONMENT VALIDATION TESTS
 #===============================================================================
 
@@ -134,6 +536,207 @@ test_validate_environment_checks_bash_version() {
         # Should not fail for our current shell
         :  # No-op, test passes if we got here
     fi
+}
+
+#===============================================================================
+# SERVER CONFIGURATION VALIDATION TESTS
+#===============================================================================
+
+test_validate_server_config_valid() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'
+server_base='/home/testuser/bucketcast'
+server_port='22'
+server_enabled='true'"
+    
+    if ! validate_server_config "$server_name" "$config_data"; then
+        echo "Should accept valid server configuration"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_host() {
+    local server_name="test-server"
+    local config_data="server_user='testuser'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_host"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_user() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_user"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_base() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_base"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_valid() {
+    if ! validate_server_host "example.com" "test-server"; then
+        echo "Should accept valid hostname"
+        return 1
+    fi
+    
+    if ! validate_server_host "192.168.1.1" "test-server"; then
+        echo "Should accept valid IP address"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_invalid() {
+    if validate_server_host "" "test-server" 2>/dev/null; then
+        echo "Should reject empty hostname"
+        return 1
+    fi
+    
+    if validate_server_host "invalid..hostname" "test-server" 2>/dev/null; then
+        echo "Should reject invalid hostname format"
+        return 1
+    fi
+    
+    if validate_server_host "0.0.0.0" "test-server" 2>/dev/null; then
+        echo "Should reject invalid IP 0.0.0.0"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_valid() {
+    if ! validate_server_port "22" "test-server"; then
+        echo "Should accept valid port 22"
+        return 1
+    fi
+    
+    if ! validate_server_port "8080" "test-server"; then
+        echo "Should accept valid port 8080"
+        return 1
+    fi
+    
+    if ! validate_server_port "" "test-server"; then
+        echo "Should accept empty port (defaults to 22)"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_invalid() {
+    if validate_server_port "abc" "test-server" 2>/dev/null; then
+        echo "Should reject non-numeric port"
+        return 1
+    fi
+    
+    if validate_server_port "0" "test-server" 2>/dev/null; then
+        echo "Should reject port 0"
+        return 1
+    fi
+    
+    if validate_server_port "65536" "test-server" 2>/dev/null; then
+        echo "Should reject port > 65535"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_valid() {
+    if ! validate_server_user "testuser" "test-server"; then
+        echo "Should accept valid username"
+        return 1
+    fi
+    
+    if ! validate_server_user "test-user" "test-server"; then
+        echo "Should accept username with dash"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_invalid() {
+    if validate_server_user "" "test-server" 2>/dev/null; then
+        echo "Should reject empty username"
+        return 1
+    fi
+    
+    if validate_server_user "Test-User" "test-server" 2>/dev/null; then
+        echo "Should reject username with uppercase"
+        return 1
+    fi
+    
+    if validate_server_user "123user" "test-server" 2>/dev/null; then
+        echo "Should reject username starting with number"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_valid() {
+    if ! validate_server_enabled "true" "test-server"; then
+        echo "Should accept 'true'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "false" "test-server"; then
+        echo "Should accept 'false'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "yes" "test-server"; then
+        echo "Should accept 'yes'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "no" "test-server"; then
+        echo "Should accept 'no'"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_invalid() {
+    if validate_server_enabled "maybe" "test-server" 2>/dev/null; then
+        echo "Should reject invalid enabled value"
+        return 1
+    fi
+    
+    if validate_server_enabled "2" "test-server" 2>/dev/null; then
+        echo "Should reject numeric value > 1"
+        return 1
+    fi
+    
+    return 0
 }
 
 test_validate_environment_checks_required_tools() {
@@ -159,6 +762,207 @@ test_validate_source_path_accepts_existing_file() {
     fi
 }
 
+#===============================================================================
+# SERVER CONFIGURATION VALIDATION TESTS
+#===============================================================================
+
+test_validate_server_config_valid() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'
+server_base='/home/testuser/bucketcast'
+server_port='22'
+server_enabled='true'"
+    
+    if ! validate_server_config "$server_name" "$config_data"; then
+        echo "Should accept valid server configuration"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_host() {
+    local server_name="test-server"
+    local config_data="server_user='testuser'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_host"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_user() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_user"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_base() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_base"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_valid() {
+    if ! validate_server_host "example.com" "test-server"; then
+        echo "Should accept valid hostname"
+        return 1
+    fi
+    
+    if ! validate_server_host "192.168.1.1" "test-server"; then
+        echo "Should accept valid IP address"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_invalid() {
+    if validate_server_host "" "test-server" 2>/dev/null; then
+        echo "Should reject empty hostname"
+        return 1
+    fi
+    
+    if validate_server_host "invalid..hostname" "test-server" 2>/dev/null; then
+        echo "Should reject invalid hostname format"
+        return 1
+    fi
+    
+    if validate_server_host "0.0.0.0" "test-server" 2>/dev/null; then
+        echo "Should reject invalid IP 0.0.0.0"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_valid() {
+    if ! validate_server_port "22" "test-server"; then
+        echo "Should accept valid port 22"
+        return 1
+    fi
+    
+    if ! validate_server_port "8080" "test-server"; then
+        echo "Should accept valid port 8080"
+        return 1
+    fi
+    
+    if ! validate_server_port "" "test-server"; then
+        echo "Should accept empty port (defaults to 22)"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_invalid() {
+    if validate_server_port "abc" "test-server" 2>/dev/null; then
+        echo "Should reject non-numeric port"
+        return 1
+    fi
+    
+    if validate_server_port "0" "test-server" 2>/dev/null; then
+        echo "Should reject port 0"
+        return 1
+    fi
+    
+    if validate_server_port "65536" "test-server" 2>/dev/null; then
+        echo "Should reject port > 65535"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_valid() {
+    if ! validate_server_user "testuser" "test-server"; then
+        echo "Should accept valid username"
+        return 1
+    fi
+    
+    if ! validate_server_user "test-user" "test-server"; then
+        echo "Should accept username with dash"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_invalid() {
+    if validate_server_user "" "test-server" 2>/dev/null; then
+        echo "Should reject empty username"
+        return 1
+    fi
+    
+    if validate_server_user "Test-User" "test-server" 2>/dev/null; then
+        echo "Should reject username with uppercase"
+        return 1
+    fi
+    
+    if validate_server_user "123user" "test-server" 2>/dev/null; then
+        echo "Should reject username starting with number"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_valid() {
+    if ! validate_server_enabled "true" "test-server"; then
+        echo "Should accept 'true'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "false" "test-server"; then
+        echo "Should accept 'false'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "yes" "test-server"; then
+        echo "Should accept 'yes'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "no" "test-server"; then
+        echo "Should accept 'no'"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_invalid() {
+    if validate_server_enabled "maybe" "test-server" 2>/dev/null; then
+        echo "Should reject invalid enabled value"
+        return 1
+    fi
+    
+    if validate_server_enabled "2" "test-server" 2>/dev/null; then
+        echo "Should reject numeric value > 1"
+        return 1
+    fi
+    
+    return 0
+}
+
 test_validate_source_path_accepts_existing_directory() {
     local test_dir="${TEST_DIR}/source_dir"
     mkdir -p "$test_dir"
@@ -169,11 +973,413 @@ test_validate_source_path_accepts_existing_directory() {
     fi
 }
 
+#===============================================================================
+# SERVER CONFIGURATION VALIDATION TESTS
+#===============================================================================
+
+test_validate_server_config_valid() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'
+server_base='/home/testuser/bucketcast'
+server_port='22'
+server_enabled='true'"
+    
+    if ! validate_server_config "$server_name" "$config_data"; then
+        echo "Should accept valid server configuration"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_host() {
+    local server_name="test-server"
+    local config_data="server_user='testuser'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_host"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_user() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_user"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_base() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_base"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_valid() {
+    if ! validate_server_host "example.com" "test-server"; then
+        echo "Should accept valid hostname"
+        return 1
+    fi
+    
+    if ! validate_server_host "192.168.1.1" "test-server"; then
+        echo "Should accept valid IP address"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_invalid() {
+    if validate_server_host "" "test-server" 2>/dev/null; then
+        echo "Should reject empty hostname"
+        return 1
+    fi
+    
+    if validate_server_host "invalid..hostname" "test-server" 2>/dev/null; then
+        echo "Should reject invalid hostname format"
+        return 1
+    fi
+    
+    if validate_server_host "0.0.0.0" "test-server" 2>/dev/null; then
+        echo "Should reject invalid IP 0.0.0.0"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_valid() {
+    if ! validate_server_port "22" "test-server"; then
+        echo "Should accept valid port 22"
+        return 1
+    fi
+    
+    if ! validate_server_port "8080" "test-server"; then
+        echo "Should accept valid port 8080"
+        return 1
+    fi
+    
+    if ! validate_server_port "" "test-server"; then
+        echo "Should accept empty port (defaults to 22)"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_invalid() {
+    if validate_server_port "abc" "test-server" 2>/dev/null; then
+        echo "Should reject non-numeric port"
+        return 1
+    fi
+    
+    if validate_server_port "0" "test-server" 2>/dev/null; then
+        echo "Should reject port 0"
+        return 1
+    fi
+    
+    if validate_server_port "65536" "test-server" 2>/dev/null; then
+        echo "Should reject port > 65535"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_valid() {
+    if ! validate_server_user "testuser" "test-server"; then
+        echo "Should accept valid username"
+        return 1
+    fi
+    
+    if ! validate_server_user "test-user" "test-server"; then
+        echo "Should accept username with dash"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_invalid() {
+    if validate_server_user "" "test-server" 2>/dev/null; then
+        echo "Should reject empty username"
+        return 1
+    fi
+    
+    if validate_server_user "Test-User" "test-server" 2>/dev/null; then
+        echo "Should reject username with uppercase"
+        return 1
+    fi
+    
+    if validate_server_user "123user" "test-server" 2>/dev/null; then
+        echo "Should reject username starting with number"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_valid() {
+    if ! validate_server_enabled "true" "test-server"; then
+        echo "Should accept 'true'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "false" "test-server"; then
+        echo "Should accept 'false'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "yes" "test-server"; then
+        echo "Should accept 'yes'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "no" "test-server"; then
+        echo "Should accept 'no'"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_invalid() {
+    if validate_server_enabled "maybe" "test-server" 2>/dev/null; then
+        echo "Should reject invalid enabled value"
+        return 1
+    fi
+    
+    if validate_server_enabled "2" "test-server" 2>/dev/null; then
+        echo "Should reject numeric value > 1"
+        return 1
+    fi
+    
+    return 0
+}
+
 test_validate_source_path_rejects_nonexistent_path() {
     if validate_source_path "/nonexistent/path/file.txt" 2>/dev/null; then
         echo "Should reject non-existent path"
         return 1
     fi
+}
+
+#===============================================================================
+# SERVER CONFIGURATION VALIDATION TESTS
+#===============================================================================
+
+test_validate_server_config_valid() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'
+server_base='/home/testuser/bucketcast'
+server_port='22'
+server_enabled='true'"
+    
+    if ! validate_server_config "$server_name" "$config_data"; then
+        echo "Should accept valid server configuration"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_host() {
+    local server_name="test-server"
+    local config_data="server_user='testuser'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_host"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_user() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_user"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_base() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_base"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_valid() {
+    if ! validate_server_host "example.com" "test-server"; then
+        echo "Should accept valid hostname"
+        return 1
+    fi
+    
+    if ! validate_server_host "192.168.1.1" "test-server"; then
+        echo "Should accept valid IP address"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_invalid() {
+    if validate_server_host "" "test-server" 2>/dev/null; then
+        echo "Should reject empty hostname"
+        return 1
+    fi
+    
+    if validate_server_host "invalid..hostname" "test-server" 2>/dev/null; then
+        echo "Should reject invalid hostname format"
+        return 1
+    fi
+    
+    if validate_server_host "0.0.0.0" "test-server" 2>/dev/null; then
+        echo "Should reject invalid IP 0.0.0.0"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_valid() {
+    if ! validate_server_port "22" "test-server"; then
+        echo "Should accept valid port 22"
+        return 1
+    fi
+    
+    if ! validate_server_port "8080" "test-server"; then
+        echo "Should accept valid port 8080"
+        return 1
+    fi
+    
+    if ! validate_server_port "" "test-server"; then
+        echo "Should accept empty port (defaults to 22)"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_invalid() {
+    if validate_server_port "abc" "test-server" 2>/dev/null; then
+        echo "Should reject non-numeric port"
+        return 1
+    fi
+    
+    if validate_server_port "0" "test-server" 2>/dev/null; then
+        echo "Should reject port 0"
+        return 1
+    fi
+    
+    if validate_server_port "65536" "test-server" 2>/dev/null; then
+        echo "Should reject port > 65535"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_valid() {
+    if ! validate_server_user "testuser" "test-server"; then
+        echo "Should accept valid username"
+        return 1
+    fi
+    
+    if ! validate_server_user "test-user" "test-server"; then
+        echo "Should accept username with dash"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_invalid() {
+    if validate_server_user "" "test-server" 2>/dev/null; then
+        echo "Should reject empty username"
+        return 1
+    fi
+    
+    if validate_server_user "Test-User" "test-server" 2>/dev/null; then
+        echo "Should reject username with uppercase"
+        return 1
+    fi
+    
+    if validate_server_user "123user" "test-server" 2>/dev/null; then
+        echo "Should reject username starting with number"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_valid() {
+    if ! validate_server_enabled "true" "test-server"; then
+        echo "Should accept 'true'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "false" "test-server"; then
+        echo "Should accept 'false'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "yes" "test-server"; then
+        echo "Should accept 'yes'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "no" "test-server"; then
+        echo "Should accept 'no'"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_invalid() {
+    if validate_server_enabled "maybe" "test-server" 2>/dev/null; then
+        echo "Should reject invalid enabled value"
+        return 1
+    fi
+    
+    if validate_server_enabled "2" "test-server" 2>/dev/null; then
+        echo "Should reject numeric value > 1"
+        return 1
+    fi
+    
+    return 0
 }
 
 #===============================================================================
@@ -192,6 +1398,207 @@ test_check_file_collision_detects_existing_file() {
     fi
 }
 
+#===============================================================================
+# SERVER CONFIGURATION VALIDATION TESTS
+#===============================================================================
+
+test_validate_server_config_valid() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'
+server_base='/home/testuser/bucketcast'
+server_port='22'
+server_enabled='true'"
+    
+    if ! validate_server_config "$server_name" "$config_data"; then
+        echo "Should accept valid server configuration"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_host() {
+    local server_name="test-server"
+    local config_data="server_user='testuser'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_host"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_user() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_user"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_base() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_base"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_valid() {
+    if ! validate_server_host "example.com" "test-server"; then
+        echo "Should accept valid hostname"
+        return 1
+    fi
+    
+    if ! validate_server_host "192.168.1.1" "test-server"; then
+        echo "Should accept valid IP address"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_invalid() {
+    if validate_server_host "" "test-server" 2>/dev/null; then
+        echo "Should reject empty hostname"
+        return 1
+    fi
+    
+    if validate_server_host "invalid..hostname" "test-server" 2>/dev/null; then
+        echo "Should reject invalid hostname format"
+        return 1
+    fi
+    
+    if validate_server_host "0.0.0.0" "test-server" 2>/dev/null; then
+        echo "Should reject invalid IP 0.0.0.0"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_valid() {
+    if ! validate_server_port "22" "test-server"; then
+        echo "Should accept valid port 22"
+        return 1
+    fi
+    
+    if ! validate_server_port "8080" "test-server"; then
+        echo "Should accept valid port 8080"
+        return 1
+    fi
+    
+    if ! validate_server_port "" "test-server"; then
+        echo "Should accept empty port (defaults to 22)"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_invalid() {
+    if validate_server_port "abc" "test-server" 2>/dev/null; then
+        echo "Should reject non-numeric port"
+        return 1
+    fi
+    
+    if validate_server_port "0" "test-server" 2>/dev/null; then
+        echo "Should reject port 0"
+        return 1
+    fi
+    
+    if validate_server_port "65536" "test-server" 2>/dev/null; then
+        echo "Should reject port > 65535"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_valid() {
+    if ! validate_server_user "testuser" "test-server"; then
+        echo "Should accept valid username"
+        return 1
+    fi
+    
+    if ! validate_server_user "test-user" "test-server"; then
+        echo "Should accept username with dash"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_invalid() {
+    if validate_server_user "" "test-server" 2>/dev/null; then
+        echo "Should reject empty username"
+        return 1
+    fi
+    
+    if validate_server_user "Test-User" "test-server" 2>/dev/null; then
+        echo "Should reject username with uppercase"
+        return 1
+    fi
+    
+    if validate_server_user "123user" "test-server" 2>/dev/null; then
+        echo "Should reject username starting with number"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_valid() {
+    if ! validate_server_enabled "true" "test-server"; then
+        echo "Should accept 'true'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "false" "test-server"; then
+        echo "Should accept 'false'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "yes" "test-server"; then
+        echo "Should accept 'yes'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "no" "test-server"; then
+        echo "Should accept 'no'"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_invalid() {
+    if validate_server_enabled "maybe" "test-server" 2>/dev/null; then
+        echo "Should reject invalid enabled value"
+        return 1
+    fi
+    
+    if validate_server_enabled "2" "test-server" 2>/dev/null; then
+        echo "Should reject numeric value > 1"
+        return 1
+    fi
+    
+    return 0
+}
+
 test_check_file_collision_allows_with_force() {
     local test_file="${TEST_DIR}/existing.txt"
     echo "existing" > "$test_file"
@@ -201,11 +1608,223 @@ test_check_file_collision_allows_with_force() {
     export SYNC_BASE_DIR="${TEST_DIR}"
     mkdir -p "$ARCHIVE_DIR"
 
-    # With force in non-interactive mode: archives existing file and returns 0
-    if ! check_file_collision "$test_file" 2>/dev/null; then
+    # With force in non-interactive mode: archives existing file and returns 0 with warnings
+    # Capture output to verify warnings are present
+    local output
+    output=$(check_file_collision "$test_file" 2>&1)
+    local result=$?
+    
+    if [[ $result -ne 0 ]]; then
         echo "Should allow overwrite with --force in non-interactive mode"
         return 1
     fi
+    
+    # Verify that appropriate warnings were logged
+    if [[ "$output" != *"FORCE MODE"* ]]; then
+        echo "Expected force mode warnings in output, got: $output"
+        return 1
+    fi
+}
+
+#===============================================================================
+# SERVER CONFIGURATION VALIDATION TESTS
+#===============================================================================
+
+test_validate_server_config_valid() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'
+server_base='/home/testuser/bucketcast'
+server_port='22'
+server_enabled='true'"
+    
+    if ! validate_server_config "$server_name" "$config_data"; then
+        echo "Should accept valid server configuration"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_host() {
+    local server_name="test-server"
+    local config_data="server_user='testuser'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_host"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_user() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_user"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_base() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_base"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_valid() {
+    if ! validate_server_host "example.com" "test-server"; then
+        echo "Should accept valid hostname"
+        return 1
+    fi
+    
+    if ! validate_server_host "192.168.1.1" "test-server"; then
+        echo "Should accept valid IP address"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_invalid() {
+    if validate_server_host "" "test-server" 2>/dev/null; then
+        echo "Should reject empty hostname"
+        return 1
+    fi
+    
+    if validate_server_host "invalid..hostname" "test-server" 2>/dev/null; then
+        echo "Should reject invalid hostname format"
+        return 1
+    fi
+    
+    if validate_server_host "0.0.0.0" "test-server" 2>/dev/null; then
+        echo "Should reject invalid IP 0.0.0.0"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_valid() {
+    if ! validate_server_port "22" "test-server"; then
+        echo "Should accept valid port 22"
+        return 1
+    fi
+    
+    if ! validate_server_port "8080" "test-server"; then
+        echo "Should accept valid port 8080"
+        return 1
+    fi
+    
+    if ! validate_server_port "" "test-server"; then
+        echo "Should accept empty port (defaults to 22)"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_invalid() {
+    if validate_server_port "abc" "test-server" 2>/dev/null; then
+        echo "Should reject non-numeric port"
+        return 1
+    fi
+    
+    if validate_server_port "0" "test-server" 2>/dev/null; then
+        echo "Should reject port 0"
+        return 1
+    fi
+    
+    if validate_server_port "65536" "test-server" 2>/dev/null; then
+        echo "Should reject port > 65535"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_valid() {
+    if ! validate_server_user "testuser" "test-server"; then
+        echo "Should accept valid username"
+        return 1
+    fi
+    
+    if ! validate_server_user "test-user" "test-server"; then
+        echo "Should accept username with dash"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_invalid() {
+    if validate_server_user "" "test-server" 2>/dev/null; then
+        echo "Should reject empty username"
+        return 1
+    fi
+    
+    if validate_server_user "Test-User" "test-server" 2>/dev/null; then
+        echo "Should reject username with uppercase"
+        return 1
+    fi
+    
+    if validate_server_user "123user" "test-server" 2>/dev/null; then
+        echo "Should reject username starting with number"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_valid() {
+    if ! validate_server_enabled "true" "test-server"; then
+        echo "Should accept 'true'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "false" "test-server"; then
+        echo "Should accept 'false'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "yes" "test-server"; then
+        echo "Should accept 'yes'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "no" "test-server"; then
+        echo "Should accept 'no'"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_invalid() {
+    if validate_server_enabled "maybe" "test-server" 2>/dev/null; then
+        echo "Should reject invalid enabled value"
+        return 1
+    fi
+    
+    if validate_server_enabled "2" "test-server" 2>/dev/null; then
+        echo "Should reject numeric value > 1"
+        return 1
+    fi
+    
+    return 0
 }
 
 test_check_file_collision_passes_for_new_file() {
@@ -217,6 +1836,207 @@ test_check_file_collision_passes_for_new_file() {
         echo "Should not detect collision for non-existent file"
         return 1
     fi
+}
+
+#===============================================================================
+# SERVER CONFIGURATION VALIDATION TESTS
+#===============================================================================
+
+test_validate_server_config_valid() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'
+server_base='/home/testuser/bucketcast'
+server_port='22'
+server_enabled='true'"
+    
+    if ! validate_server_config "$server_name" "$config_data"; then
+        echo "Should accept valid server configuration"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_host() {
+    local server_name="test-server"
+    local config_data="server_user='testuser'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_host"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_user() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_user"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_base() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_base"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_valid() {
+    if ! validate_server_host "example.com" "test-server"; then
+        echo "Should accept valid hostname"
+        return 1
+    fi
+    
+    if ! validate_server_host "192.168.1.1" "test-server"; then
+        echo "Should accept valid IP address"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_invalid() {
+    if validate_server_host "" "test-server" 2>/dev/null; then
+        echo "Should reject empty hostname"
+        return 1
+    fi
+    
+    if validate_server_host "invalid..hostname" "test-server" 2>/dev/null; then
+        echo "Should reject invalid hostname format"
+        return 1
+    fi
+    
+    if validate_server_host "0.0.0.0" "test-server" 2>/dev/null; then
+        echo "Should reject invalid IP 0.0.0.0"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_valid() {
+    if ! validate_server_port "22" "test-server"; then
+        echo "Should accept valid port 22"
+        return 1
+    fi
+    
+    if ! validate_server_port "8080" "test-server"; then
+        echo "Should accept valid port 8080"
+        return 1
+    fi
+    
+    if ! validate_server_port "" "test-server"; then
+        echo "Should accept empty port (defaults to 22)"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_invalid() {
+    if validate_server_port "abc" "test-server" 2>/dev/null; then
+        echo "Should reject non-numeric port"
+        return 1
+    fi
+    
+    if validate_server_port "0" "test-server" 2>/dev/null; then
+        echo "Should reject port 0"
+        return 1
+    fi
+    
+    if validate_server_port "65536" "test-server" 2>/dev/null; then
+        echo "Should reject port > 65535"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_valid() {
+    if ! validate_server_user "testuser" "test-server"; then
+        echo "Should accept valid username"
+        return 1
+    fi
+    
+    if ! validate_server_user "test-user" "test-server"; then
+        echo "Should accept username with dash"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_invalid() {
+    if validate_server_user "" "test-server" 2>/dev/null; then
+        echo "Should reject empty username"
+        return 1
+    fi
+    
+    if validate_server_user "Test-User" "test-server" 2>/dev/null; then
+        echo "Should reject username with uppercase"
+        return 1
+    fi
+    
+    if validate_server_user "123user" "test-server" 2>/dev/null; then
+        echo "Should reject username starting with number"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_valid() {
+    if ! validate_server_enabled "true" "test-server"; then
+        echo "Should accept 'true'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "false" "test-server"; then
+        echo "Should accept 'false'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "yes" "test-server"; then
+        echo "Should accept 'yes'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "no" "test-server"; then
+        echo "Should accept 'no'"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_invalid() {
+    if validate_server_enabled "maybe" "test-server" 2>/dev/null; then
+        echo "Should reject invalid enabled value"
+        return 1
+    fi
+    
+    if validate_server_enabled "2" "test-server" 2>/dev/null; then
+        echo "Should reject numeric value > 1"
+        return 1
+    fi
+    
+    return 0
 }
 
 #===============================================================================
@@ -233,6 +2053,207 @@ test_validate_transfer_size_accepts_small_files() {
         echo "Should accept small file"
         return 1
     fi
+}
+
+#===============================================================================
+# SERVER CONFIGURATION VALIDATION TESTS
+#===============================================================================
+
+test_validate_server_config_valid() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'
+server_base='/home/testuser/bucketcast'
+server_port='22'
+server_enabled='true'"
+    
+    if ! validate_server_config "$server_name" "$config_data"; then
+        echo "Should accept valid server configuration"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_host() {
+    local server_name="test-server"
+    local config_data="server_user='testuser'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_host"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_user() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_user"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_base() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_base"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_valid() {
+    if ! validate_server_host "example.com" "test-server"; then
+        echo "Should accept valid hostname"
+        return 1
+    fi
+    
+    if ! validate_server_host "192.168.1.1" "test-server"; then
+        echo "Should accept valid IP address"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_invalid() {
+    if validate_server_host "" "test-server" 2>/dev/null; then
+        echo "Should reject empty hostname"
+        return 1
+    fi
+    
+    if validate_server_host "invalid..hostname" "test-server" 2>/dev/null; then
+        echo "Should reject invalid hostname format"
+        return 1
+    fi
+    
+    if validate_server_host "0.0.0.0" "test-server" 2>/dev/null; then
+        echo "Should reject invalid IP 0.0.0.0"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_valid() {
+    if ! validate_server_port "22" "test-server"; then
+        echo "Should accept valid port 22"
+        return 1
+    fi
+    
+    if ! validate_server_port "8080" "test-server"; then
+        echo "Should accept valid port 8080"
+        return 1
+    fi
+    
+    if ! validate_server_port "" "test-server"; then
+        echo "Should accept empty port (defaults to 22)"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_invalid() {
+    if validate_server_port "abc" "test-server" 2>/dev/null; then
+        echo "Should reject non-numeric port"
+        return 1
+    fi
+    
+    if validate_server_port "0" "test-server" 2>/dev/null; then
+        echo "Should reject port 0"
+        return 1
+    fi
+    
+    if validate_server_port "65536" "test-server" 2>/dev/null; then
+        echo "Should reject port > 65535"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_valid() {
+    if ! validate_server_user "testuser" "test-server"; then
+        echo "Should accept valid username"
+        return 1
+    fi
+    
+    if ! validate_server_user "test-user" "test-server"; then
+        echo "Should accept username with dash"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_invalid() {
+    if validate_server_user "" "test-server" 2>/dev/null; then
+        echo "Should reject empty username"
+        return 1
+    fi
+    
+    if validate_server_user "Test-User" "test-server" 2>/dev/null; then
+        echo "Should reject username with uppercase"
+        return 1
+    fi
+    
+    if validate_server_user "123user" "test-server" 2>/dev/null; then
+        echo "Should reject username starting with number"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_valid() {
+    if ! validate_server_enabled "true" "test-server"; then
+        echo "Should accept 'true'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "false" "test-server"; then
+        echo "Should accept 'false'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "yes" "test-server"; then
+        echo "Should accept 'yes'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "no" "test-server"; then
+        echo "Should accept 'no'"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_invalid() {
+    if validate_server_enabled "maybe" "test-server" 2>/dev/null; then
+        echo "Should reject invalid enabled value"
+        return 1
+    fi
+    
+    if validate_server_enabled "2" "test-server" 2>/dev/null; then
+        echo "Should reject numeric value > 1"
+        return 1
+    fi
+    
+    return 0
 }
 
 test_validate_transfer_size_parses_size_limits() {
@@ -261,6 +2282,207 @@ test_validate_server_id_rejects_reserved_namespace_global() {
         echo "Should reject reserved namespace: global"
         return 1
     fi
+}
+
+#===============================================================================
+# SERVER CONFIGURATION VALIDATION TESTS
+#===============================================================================
+
+test_validate_server_config_valid() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'
+server_base='/home/testuser/bucketcast'
+server_port='22'
+server_enabled='true'"
+    
+    if ! validate_server_config "$server_name" "$config_data"; then
+        echo "Should accept valid server configuration"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_host() {
+    local server_name="test-server"
+    local config_data="server_user='testuser'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_host"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_user() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_user"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_base() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_base"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_valid() {
+    if ! validate_server_host "example.com" "test-server"; then
+        echo "Should accept valid hostname"
+        return 1
+    fi
+    
+    if ! validate_server_host "192.168.1.1" "test-server"; then
+        echo "Should accept valid IP address"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_invalid() {
+    if validate_server_host "" "test-server" 2>/dev/null; then
+        echo "Should reject empty hostname"
+        return 1
+    fi
+    
+    if validate_server_host "invalid..hostname" "test-server" 2>/dev/null; then
+        echo "Should reject invalid hostname format"
+        return 1
+    fi
+    
+    if validate_server_host "0.0.0.0" "test-server" 2>/dev/null; then
+        echo "Should reject invalid IP 0.0.0.0"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_valid() {
+    if ! validate_server_port "22" "test-server"; then
+        echo "Should accept valid port 22"
+        return 1
+    fi
+    
+    if ! validate_server_port "8080" "test-server"; then
+        echo "Should accept valid port 8080"
+        return 1
+    fi
+    
+    if ! validate_server_port "" "test-server"; then
+        echo "Should accept empty port (defaults to 22)"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_invalid() {
+    if validate_server_port "abc" "test-server" 2>/dev/null; then
+        echo "Should reject non-numeric port"
+        return 1
+    fi
+    
+    if validate_server_port "0" "test-server" 2>/dev/null; then
+        echo "Should reject port 0"
+        return 1
+    fi
+    
+    if validate_server_port "65536" "test-server" 2>/dev/null; then
+        echo "Should reject port > 65535"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_valid() {
+    if ! validate_server_user "testuser" "test-server"; then
+        echo "Should accept valid username"
+        return 1
+    fi
+    
+    if ! validate_server_user "test-user" "test-server"; then
+        echo "Should accept username with dash"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_invalid() {
+    if validate_server_user "" "test-server" 2>/dev/null; then
+        echo "Should reject empty username"
+        return 1
+    fi
+    
+    if validate_server_user "Test-User" "test-server" 2>/dev/null; then
+        echo "Should reject username with uppercase"
+        return 1
+    fi
+    
+    if validate_server_user "123user" "test-server" 2>/dev/null; then
+        echo "Should reject username starting with number"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_valid() {
+    if ! validate_server_enabled "true" "test-server"; then
+        echo "Should accept 'true'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "false" "test-server"; then
+        echo "Should accept 'false'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "yes" "test-server"; then
+        echo "Should accept 'yes'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "no" "test-server"; then
+        echo "Should accept 'no'"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_invalid() {
+    if validate_server_enabled "maybe" "test-server" 2>/dev/null; then
+        echo "Should reject invalid enabled value"
+        return 1
+    fi
+    
+    if validate_server_enabled "2" "test-server" 2>/dev/null; then
+        echo "Should reject numeric value > 1"
+        return 1
+    fi
+    
+    return 0
 }
 
 test_validate_server_id_accepts_valid_server_ids() {
@@ -345,4 +2567,205 @@ test_validate_relay_params_rejects_reserved_namespace() {
         echo "Should reject 'global' as to server (reserved)"
         return 1
     fi
+}
+
+#===============================================================================
+# SERVER CONFIGURATION VALIDATION TESTS
+#===============================================================================
+
+test_validate_server_config_valid() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'
+server_base='/home/testuser/bucketcast'
+server_port='22'
+server_enabled='true'"
+    
+    if ! validate_server_config "$server_name" "$config_data"; then
+        echo "Should accept valid server configuration"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_host() {
+    local server_name="test-server"
+    local config_data="server_user='testuser'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_host"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_user() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_base='/home/testuser/bucketcast'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_user"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_config_missing_base() {
+    local server_name="test-server"
+    local config_data="server_host='example.com'
+server_user='testuser'"
+    
+    if validate_server_config "$server_name" "$config_data" 2>/dev/null; then
+        echo "Should reject configuration missing server_base"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_valid() {
+    if ! validate_server_host "example.com" "test-server"; then
+        echo "Should accept valid hostname"
+        return 1
+    fi
+    
+    if ! validate_server_host "192.168.1.1" "test-server"; then
+        echo "Should accept valid IP address"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_host_invalid() {
+    if validate_server_host "" "test-server" 2>/dev/null; then
+        echo "Should reject empty hostname"
+        return 1
+    fi
+    
+    if validate_server_host "invalid..hostname" "test-server" 2>/dev/null; then
+        echo "Should reject invalid hostname format"
+        return 1
+    fi
+    
+    if validate_server_host "0.0.0.0" "test-server" 2>/dev/null; then
+        echo "Should reject invalid IP 0.0.0.0"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_valid() {
+    if ! validate_server_port "22" "test-server"; then
+        echo "Should accept valid port 22"
+        return 1
+    fi
+    
+    if ! validate_server_port "8080" "test-server"; then
+        echo "Should accept valid port 8080"
+        return 1
+    fi
+    
+    if ! validate_server_port "" "test-server"; then
+        echo "Should accept empty port (defaults to 22)"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_port_invalid() {
+    if validate_server_port "abc" "test-server" 2>/dev/null; then
+        echo "Should reject non-numeric port"
+        return 1
+    fi
+    
+    if validate_server_port "0" "test-server" 2>/dev/null; then
+        echo "Should reject port 0"
+        return 1
+    fi
+    
+    if validate_server_port "65536" "test-server" 2>/dev/null; then
+        echo "Should reject port > 65535"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_valid() {
+    if ! validate_server_user "testuser" "test-server"; then
+        echo "Should accept valid username"
+        return 1
+    fi
+    
+    if ! validate_server_user "test-user" "test-server"; then
+        echo "Should accept username with dash"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_user_invalid() {
+    if validate_server_user "" "test-server" 2>/dev/null; then
+        echo "Should reject empty username"
+        return 1
+    fi
+    
+    if validate_server_user "Test-User" "test-server" 2>/dev/null; then
+        echo "Should reject username with uppercase"
+        return 1
+    fi
+    
+    if validate_server_user "123user" "test-server" 2>/dev/null; then
+        echo "Should reject username starting with number"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_valid() {
+    if ! validate_server_enabled "true" "test-server"; then
+        echo "Should accept 'true'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "false" "test-server"; then
+        echo "Should accept 'false'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "yes" "test-server"; then
+        echo "Should accept 'yes'"
+        return 1
+    fi
+    
+    if ! validate_server_enabled "no" "test-server"; then
+        echo "Should accept 'no'"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_validate_server_enabled_invalid() {
+    if validate_server_enabled "maybe" "test-server" 2>/dev/null; then
+        echo "Should reject invalid enabled value"
+        return 1
+    fi
+    
+    if validate_server_enabled "2" "test-server" 2>/dev/null; then
+        echo "Should reject numeric value > 1"
+        return 1
+    fi
+    
+    return 0
 }

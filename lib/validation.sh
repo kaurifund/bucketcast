@@ -284,6 +284,32 @@ check_file_collision() {
         return 1
     fi
     
+    # FORCE MODE: Add explicit warnings about data loss risk
+    log_warn "FORCE MODE: File '$dest_path' will be overwritten and original archived"
+    log_warn "FORCE MODE: This operation may result in data loss if archive fails"
+    
+    # In interactive mode, still ask for confirmation despite force flag
+    if [[ -t 0 && -t 1 ]]; then
+        log_warn "Force mode enabled, but confirming due to potential data loss risk"
+        echo "" >&2
+        echo -e "${RED}WARNING: FORCE MODE ACTIVATED${RESET}" >&2
+        echo "This will overwrite existing file: $dest_path" >&2
+        echo "The original file will be archived, but this operation carries data loss risk." >&2
+        echo "" >&2
+        echo -n "Are you absolutely sure you want to proceed? (type 'YES' to confirm): " >&2
+        read -r confirmation
+        if [[ "$confirmation" != "YES" ]]; then
+            log_info "User cancelled force overwrite operation"
+            return 1
+        fi
+        log_info "User confirmed force overwrite with explicit acknowledgment"
+    else
+        # Non-interactive mode - log the forced action with adequate detail
+        log_warn "Non-interactive force mode: Proceeding with overwrite of '$dest_path'"
+        log_info "Original file will be archived before overwrite"
+        log_info "Force mode operation logged for audit purposes"
+    fi
+    
     # Force mode: prompt for confirmation
     if [[ -t 0 ]]; then
         echo ""
@@ -569,5 +595,287 @@ preflight_relay() {
     fi
 
     log_debug "Preflight checks passed for relay: $from_server -> $to_server"
+    return 0
+}
+
+#===============================================================================
+# VALIDATE: Comprehensive server configuration
+# Validates that server configurations contain required fields and reasonable values
+#===============================================================================
+validate_server_config() {
+    local server_name="$1"
+    local config_data="${2:-}"
+    
+    if [[ -z "$server_name" ]]; then
+        log_error "Server name is required for validation"
+        return 1
+    fi
+    
+    # Validate server name using existing function
+    if ! validate_server_id "$server_name"; then
+        return 1
+    fi
+    
+    # If config data is provided, validate it
+    if [[ -n "$config_data" ]]; then
+        # Parse and validate configuration fields
+        local server_host="" server_port="" server_user="" server_base=""
+        local server_identity_file="" server_enabled=""
+        
+        # Extract configuration values (expecting shell variable assignments)
+        eval "$config_data" 2>/dev/null || {
+            log_error "Invalid server configuration format for '$server_name'"
+            return 1
+        }
+        
+        # Validate required fields
+        if [[ -z "$server_host" ]]; then
+            log_error "Server '$server_name': missing required field 'server_host'"
+            return 1
+        fi
+        
+        if [[ -z "$server_user" ]]; then
+            log_error "Server '$server_name': missing required field 'server_user'"
+            return 1
+        fi
+        
+        if [[ -z "$server_base" ]]; then
+            log_error "Server '$server_name': missing required field 'server_base'"
+            return 1
+        fi
+        
+        # Validate field formats and ranges
+        if ! validate_server_host "$server_host" "$server_name"; then
+            return 1
+        fi
+        
+        if ! validate_server_port "${server_port:-22}" "$server_name"; then
+            return 1
+        fi
+        
+        if ! validate_server_user "$server_user" "$server_name"; then
+            return 1
+        fi
+        
+        if ! validate_remote_base "$server_base" "$server_name"; then
+            return 1
+        fi
+        
+        # Validate identity file if provided
+        if [[ -n "$server_identity_file" ]]; then
+            if ! validate_identity_file "$server_identity_file" "$server_name"; then
+                return 1
+            fi
+        fi
+        
+        # Validate enabled field if provided
+        if [[ -n "$server_enabled" ]]; then
+            if ! validate_server_enabled "$server_enabled" "$server_name"; then
+                return 1
+            fi
+        fi
+    fi
+    
+    log_debug "Server configuration validation passed for: $server_name"
+    return 0
+}
+
+#===============================================================================
+# VALIDATE: Server hostname/IP
+#===============================================================================
+validate_server_host() {
+    local host="$1"
+    local server_name="$2"
+    
+    if [[ -z "$host" ]]; then
+        log_error "Server '$server_name': host cannot be empty"
+        return 1
+    fi
+    
+    # Check length
+    if [[ ${#host} -gt 253 ]]; then
+        log_error "Server '$server_name': host name too long (max 253 characters): $host"
+        return 1
+    fi
+    
+    # Basic format validation (hostname or IP)
+    # Allow valid hostnames, FQDNs, and IP addresses
+    if [[ ! "$host" =~ ^[a-zA-Z0-9]([a-zA-Z0-9\.-]*[a-zA-Z0-9])?$ ]]; then
+        log_error "Server '$server_name': invalid host format: $host"
+        return 1
+    fi
+    
+    # Warn about potentially problematic hosts
+    case "$host" in
+        "localhost"|"127.0.0.1"|"::1")
+            log_warn "Server '$server_name': using localhost - ensure this is intentional"
+            ;;
+        "0.0.0.0"|"*")
+            log_error "Server '$server_name': invalid host: $host"
+            return 1
+            ;;
+    esac
+    
+    return 0
+}
+
+#===============================================================================
+# VALIDATE: Server port number
+#===============================================================================
+validate_server_port() {
+    local port="$1"
+    local server_name="$2"
+    
+    # Default to 22 if empty
+    if [[ -z "$port" ]]; then
+        port="22"
+    fi
+    
+    # Must be numeric
+    if ! [[ "$port" =~ ^[0-9]+$ ]]; then
+        log_error "Server '$server_name': port must be numeric: $port"
+        return 1
+    fi
+    
+    # Validate range (1-65535)
+    if [[ $port -lt 1 || $port -gt 65535 ]]; then
+        log_error "Server '$server_name': port out of valid range (1-65535): $port"
+        return 1
+    fi
+    
+    # Warn about potentially problematic ports
+    if [[ $port -lt 1024 && $port -ne 22 ]]; then
+        log_warn "Server '$server_name': using privileged port $port - ensure this is correct"
+    fi
+    
+    return 0
+}
+
+#===============================================================================
+# VALIDATE: Server username
+#===============================================================================
+validate_server_user() {
+    local user="$1"
+    local server_name="$2"
+    
+    if [[ -z "$user" ]]; then
+        log_error "Server '$server_name': user cannot be empty"
+        return 1
+    fi
+    
+    # Check length (1-32 characters is typical for usernames)
+    if [[ ${#user} -gt 32 ]]; then
+        log_error "Server '$server_name': username too long (max 32 characters): $user"
+        return 1
+    fi
+    
+    # Validate username format (POSIX username rules)
+    if [[ ! "$user" =~ ^[a-z][a-z0-9_-]*$ ]]; then
+        log_error "Server '$server_name': invalid username format: $user"
+        return 1
+    fi
+    
+    # Warn about potentially problematic usernames
+    case "$user" in
+        "root")
+            log_warn "Server '$server_name': using root user - ensure this is necessary and secure"
+            ;;
+    esac
+    
+    return 0
+}
+
+#===============================================================================
+# VALIDATE: SSH identity file
+#===============================================================================
+validate_identity_file() {
+    local identity_file="$1"
+    local server_name="$2"
+    
+    if [[ -z "$identity_file" ]]; then
+        return 0  # Optional field
+    fi
+    
+    # Expand tilde
+    local expanded_file="${identity_file/#\~/$HOME}"
+    
+    # Check file exists
+    if [[ ! -f "$expanded_file" ]]; then
+        log_error "Server '$server_name': identity file does not exist: $identity_file"
+        return 1
+    fi
+    
+    # Check file permissions (should not be world-readable)
+    local perms
+    perms=$(stat -c "%a" "$expanded_file" 2>/dev/null || stat -f "%Lp" "$expanded_file" 2>/dev/null)
+    
+    if [[ -z "$perms" ]]; then
+        log_warn "Server '$server_name': could not check permissions for identity file: $identity_file"
+    elif [[ "${perms: -1}" -gt 0 || "${perms: -2:1}" -gt 0 ]]; then
+        log_error "Server '$server_name': identity file has unsafe permissions ($perms): $identity_file"
+        log_error "Run: chmod 600 '$expanded_file'"
+        return 1
+    fi
+    
+    return 0
+}
+
+#===============================================================================
+# VALIDATE: Server enabled flag
+#===============================================================================
+validate_server_enabled() {
+    local enabled="$1"
+    local server_name="$2"
+    
+    # Must be true or false (case insensitive)
+    case "${enabled,,}" in
+        "true"|"yes"|"1"|"on")
+            return 0
+            ;;
+        "false"|"no"|"0"|"off")
+            return 0
+            ;;
+        *)
+            log_error "Server '$server_name': invalid enabled value (must be true/false): $enabled"
+            return 1
+            ;;
+    esac
+}
+
+#===============================================================================
+# VALIDATE: Complete server configuration file
+#===============================================================================
+validate_server_config_file() {
+    local config_file="$1"
+    local server_name="$2"
+    
+    if [[ -z "$config_file" ]]; then
+        log_error "Server configuration file path is required"
+        return 1
+    fi
+    
+    if [[ ! -f "$config_file" ]]; then
+        log_error "Server configuration file does not exist: $config_file"
+        return 1
+    fi
+    
+    if [[ ! -r "$config_file" ]]; then
+        log_error "Server configuration file is not readable: $config_file"
+        return 1
+    fi
+    
+    # Read and validate configuration
+    local config_data
+    config_data=$(cat "$config_file") || {
+        log_error "Failed to read server configuration file: $config_file"
+        return 1
+    }
+    
+    if ! validate_server_config "$server_name" "$config_data"; then
+        log_error "Server configuration validation failed: $config_file"
+        return 1
+    fi
+    
+    log_debug "Server configuration file validation passed: $config_file"
     return 0
 }

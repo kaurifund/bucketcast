@@ -974,10 +974,21 @@ class BucketcastTUI(App):
         self.notify(f"Pushing to {server_id}...", timeout=2)
 
         def _run() -> subprocess.CompletedProcess:
-            return subprocess.run(
-                [str(script)] + args,
-                capture_output=True, text=True, timeout=60,
-            )
+            try:
+                return subprocess.run(
+                    [str(script)] + args,
+                    capture_output=True, text=True, timeout=60,
+                )
+            except subprocess.TimeoutExpired as e:
+                return subprocess.CompletedProcess(
+                    args=e.cmd, returncode=124, 
+                    stdout="", stderr=f"Timeout after {e.timeout}s: {e}"
+                )
+            except Exception as e:
+                return subprocess.CompletedProcess(
+                    args=[str(script)] + args, returncode=125,
+                    stdout="", stderr=f"Error: {e}"
+                )
 
         self.run_worker(_run, name="push", exit_on_error=False)
 
@@ -987,10 +998,21 @@ class BucketcastTUI(App):
         self.notify(f"Pulling from {server_id}...", timeout=2)
 
         def _run() -> subprocess.CompletedProcess:
-            return subprocess.run(
-                [str(script)] + args,
-                capture_output=True, text=True, timeout=60,
-            )
+            try:
+                return subprocess.run(
+                    [str(script)] + args,
+                    capture_output=True, text=True, timeout=60,
+                )
+            except subprocess.TimeoutExpired as e:
+                return subprocess.CompletedProcess(
+                    args=e.cmd, returncode=124, 
+                    stdout="", stderr=f"Timeout after {e.timeout}s: {e}"
+                )
+            except Exception as e:
+                return subprocess.CompletedProcess(
+                    args=[str(script)] + args, returncode=125,
+                    stdout="", stderr=f"Error: {e}"
+                )
 
         self.run_worker(_run, name="pull", exit_on_error=False)
 
@@ -1003,10 +1025,21 @@ class BucketcastTUI(App):
         self.notify(f"Sharing...", timeout=2)
 
         def _run() -> subprocess.CompletedProcess:
-            return subprocess.run(
-                [str(script)] + args,
-                capture_output=True, text=True, timeout=30,
-            )
+            try:
+                return subprocess.run(
+                    [str(script)] + args,
+                    capture_output=True, text=True, timeout=30,
+                )
+            except subprocess.TimeoutExpired as e:
+                return subprocess.CompletedProcess(
+                    args=e.cmd, returncode=124, 
+                    stdout="", stderr=f"Timeout after {e.timeout}s: {e}"
+                )
+            except Exception as e:
+                return subprocess.CompletedProcess(
+                    args=[str(script)] + args, returncode=125,
+                    stdout="", stderr=f"Error: {e}"
+                )
 
         self.run_worker(_run, name="share", exit_on_error=False)
 

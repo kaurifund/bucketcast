@@ -263,6 +263,9 @@ cleanup_on_exit() {
     # Release any locks (guard against unset TMP_DIR in EXIT trap)
     release_lock "bucketcast"
 
+    # Clean up session-specific files first (more aggressive)
+    cleanup_session_files
+
     # Clean up temp files
     if [[ -n "${TMP_DIR:-}" && -d "${TMP_DIR}" ]]; then
         find "$TMP_DIR" -maxdepth 1 -type f -name "*.tmp" -mmin +60 -delete 2>/dev/null || true
