@@ -245,6 +245,11 @@ main() {
     # Update shell RC
     update_shell_rc
 
+    # Migrate from old sync-shuttle name if needed
+    if [[ -f "${INSTALL_DIR}/migrate.sh" ]]; then
+        bash "${INSTALL_DIR}/migrate.sh" --yes
+    fi
+
     # Initialize
     initialize_bucketcast
 
