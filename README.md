@@ -29,10 +29,50 @@ Bucketcast is a command-line tool for safely transferring files between your hom
 - 🔒 **Safe by Design**: Never deletes files, never overwrites without consent
 - 📁 **Sandboxed Operations**: All files stored in `~/.bucketcast/`
 - 🔄 **Bidirectional Sync**: Push to and pull from remote servers
+- 🔀 **Multi-Server Relay**: Move files between servers via your local machine
 - 📝 **Comprehensive Logging**: JSON and human-readable logs
 - 🎯 **Idempotent**: Safe to run multiple times
 - ☁️ **Optional S3 Integration**: Archive to S3 for backup
 - 🖥️ **Optional TUI**: Interactive terminal interface
+
+## When to Use Relay
+
+The `relay` command solves a common problem: **moving files between two servers that can't directly connect to each other**.
+
+### The Problem
+
+You have servers A and B. You want to move files from A to B, but:
+- Server A can't SSH to Server B (firewalls, different networks, no credentials)
+- Server B can't SSH to Server A
+- Your local machine CAN reach both servers
+
+### Without Relay (Tedious)
+
+```bash
+# Step 1: Pull from server A to local
+bucketcast pull -s server-a
+
+# Step 2: Manually find and copy files to outbox
+cp ~/.bucketcast/local/inbox/server-a/file.txt ~/.bucketcast/local/outbox/global/
+
+# Step 3: Push to server B
+bucketcast push -s server-b -S ~/.bucketcast/local/outbox/global/file.txt
+```
+
+### With Relay (One Command)
+
+```bash
+bucketcast relay --from server-a --to server-b
+```
+
+Your local machine acts as a **hub** - it pulls from A, then pushes to B. The servers never need to know about each other.
+
+### Common Relay Scenarios
+
+- Moving deployment artifacts between staging and production servers
+- Transferring logs from production to an analysis server
+- Syncing configuration between servers in different networks
+- Migrating files during server transitions
 
 ## Quick Start
 
@@ -98,6 +138,7 @@ After initialization, Bucketcast creates:
 | `push` | Push files TO a remote server |
 | `pull` | Pull files FROM a remote server |
 | `share` | Share files via outbox (for others to pull) |
+| `relay` | Relay files between servers (via local) |
 | `list servers` | List configured servers |
 | `list files` | List files for a server |
 | `status` | Show sync status |
@@ -109,6 +150,9 @@ After initialization, Bucketcast creates:
 |------|-------------|
 | `-s, --server <id>` | Target server ID |
 | `-S, --source <path>` | Source file/directory |
+| `-F, --from <id>` | Source server for relay |
+| `-T, --to <id>` | Destination server for relay |
+| `-g, --global` | Relay only global outbox files |
 | `-n, --dry-run` | Preview without executing |
 | `-f, --force` | Allow overwrites (prompts) |
 | `-v, --verbose` | Verbose output |
@@ -150,6 +194,16 @@ bucketcast share --list
 
 # Remove a file from global share
 bucketcast share --global --remove -S shared-doc.pdf
+
+# Relay files from one server to another
+bucketcast relay --from serverA --to serverB --dry-run
+bucketcast relay --from serverA --to serverB
+
+# Relay only global outbox files
+bucketcast relay --from serverA --to serverB --global
+
+# Relay specific files only (multiple -S flags supported)
+bucketcast relay --from serverA --to serverB -S myfile.txt -S other.txt
 ```
 
 ## Configuration
