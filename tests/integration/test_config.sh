@@ -46,13 +46,13 @@ test_init_preserves_existing_configs() {
     mkdir -p "${SYNC_BASE_DIR}/config"
     
     # Create existing config
-    echo "CUSTOM_SETTING=true" > "${SYNC_BASE_DIR}/config/sync-shuttle.conf"
+    echo "CUSTOM_SETTING=true" > "${SYNC_BASE_DIR}/config/bucketcast.conf"
     
     # Run init again
     mkdir -p "$SYNC_BASE_DIR"/{config,remote,local/{inbox,outbox},logs,archive,tmp}
     
     # Original config should be preserved
-    assert_file_contains "${SYNC_BASE_DIR}/config/sync-shuttle.conf" "CUSTOM_SETTING=true"
+    assert_file_contains "${SYNC_BASE_DIR}/config/bucketcast.conf" "CUSTOM_SETTING=true"
 }
 
 #===============================================================================
@@ -65,14 +65,14 @@ test_config_loading_reads_main_config() {
     mkdir -p "$CONFIG_DIR"
     
     # Create config
-    cat > "${CONFIG_DIR}/sync-shuttle.conf" << 'EOF'
+    cat > "${CONFIG_DIR}/bucketcast.conf" << 'EOF'
 LOG_LEVEL="DEBUG"
 MAX_TRANSFER_SIZE="5G"
 S3_ENABLED="true"
 EOF
     
     # Source config
-    source "${CONFIG_DIR}/sync-shuttle.conf"
+    source "${CONFIG_DIR}/bucketcast.conf"
     
     assert_equals "$LOG_LEVEL" "DEBUG"
     assert_equals "$MAX_TRANSFER_SIZE" "5G"
@@ -113,7 +113,7 @@ test_config_loading_handles_missing_config() {
     
     # No config file exists
     # Should not fail (use defaults)
-    if [[ ! -f "${CONFIG_DIR}/sync-shuttle.conf" ]]; then
+    if [[ ! -f "${CONFIG_DIR}/bucketcast.conf" ]]; then
         # This is expected - defaults should apply
         :
     fi

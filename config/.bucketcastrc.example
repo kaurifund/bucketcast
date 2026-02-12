@@ -1,17 +1,17 @@
 #===============================================================================
-# SYNC SHUTTLE - USER CONFIGURATION
+# BUCKETCAST - USER CONFIGURATION
 #===============================================================================
-# User-level defaults for sync-shuttle.
+# User-level defaults for bucketcast.
 #
-# Location: ~/.syncshuttlerc (loaded automatically if present)
+# Location: ~/.bucketcastrc (loaded automatically if present)
 #
 # This file is sourced BEFORE the main config, allowing you to set
 # user-specific defaults that can be overridden per-project.
 #
 # Priority (lowest to highest):
 #   1. Built-in defaults
-#   2. ~/.syncshuttlerc (this file)
-#   3. ~/.sync-shuttle/config/sync-shuttle.conf
+#   2. ~/.bucketcastrc (this file)
+#   3. ~/.bucketcast/config/bucketcast.conf
 #   4. Command-line flags
 #===============================================================================
 
@@ -20,12 +20,12 @@
 #-------------------------------------------------------------------------------
 
 # Your preferred editor for config files
-# SYNC_SHUTTLE_EDITOR="${EDITOR:-nano}"
+# BUCKETCAST_EDITOR="${EDITOR:-nano}"
 
 # Default behavior flags
-# SYNC_SHUTTLE_DRY_RUN_DEFAULT="false"    # Always start in dry-run mode
-# SYNC_SHUTTLE_VERBOSE_DEFAULT="false"    # Verbose output by default
-# SYNC_SHUTTLE_CONFIRM_FORCE="true"       # Require confirmation for --force
+# BUCKETCAST_DRY_RUN_DEFAULT="false"    # Always start in dry-run mode
+# BUCKETCAST_VERBOSE_DEFAULT="false"    # Verbose output by default
+# BUCKETCAST_CONFIRM_FORCE="true"       # Require confirmation for --force
 
 #-------------------------------------------------------------------------------
 # SSH Defaults
@@ -67,12 +67,12 @@
 # Aliases / Shortcuts
 #-------------------------------------------------------------------------------
 # Define quick aliases for frequently used servers
-# These can be used with: sync-shuttle push -s @work
+# These can be used with: bucketcast push -s @work
 #
 # Example:
-# SYNC_SHUTTLE_ALIAS_WORK="my-work-server"
-# SYNC_SHUTTLE_ALIAS_HOME="home-nas"
-# SYNC_SHUTTLE_ALIAS_PI="raspberry-pi-4"
+# BUCKETCAST_ALIAS_WORK="my-work-server"
+# BUCKETCAST_ALIAS_HOME="home-nas"
+# BUCKETCAST_ALIAS_PI="raspberry-pi-4"
 
 #===============================================================================
 # END OF USER CONFIGURATION

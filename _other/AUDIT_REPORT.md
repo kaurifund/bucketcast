@@ -1,4 +1,4 @@
-# Sync Shuttle - Comprehensive Project Audit
+# Bucketcast - Comprehensive Project Audit
 
 **Audit Date:** 2026-01-01  
 **Auditor:** Claude  
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-The Sync Shuttle project is **substantially complete** and meets the core requirements specified in the original request. The implementation follows the stated design principles (safety-first, idempotent, sandboxed operations) and includes comprehensive documentation.
+The Bucketcast project is **substantially complete** and meets the core requirements specified in the original request. The implementation follows the stated design principles (safety-first, idempotent, sandboxed operations) and includes comprehensive documentation.
 
 | Category | Status | Score |
 |----------|--------|-------|
@@ -60,7 +60,7 @@ The Sync Shuttle project is **substantially complete** and meets the core requir
 
 ---
 
-### 3. sync-shuttle.sh ✅ PASS
+### 3. bucketcast.sh ✅ PASS
 **Lines:** 1,139 | **Purpose:** Main executable
 
 | Requirement | Status | Notes |
@@ -174,7 +174,7 @@ The Sync Shuttle project is **substantially complete** and meets the core requir
 
 ---
 
-### 9. tui/sync_tui.py ✅ PASS
+### 9. tui/bucketcast_tui.py ✅ PASS
 **Lines:** 666 | **Purpose:** Interactive terminal interface
 
 | Component | Status | Notes |
@@ -207,7 +207,7 @@ rich>=13.0.0
 
 ---
 
-### 11. config/sync-shuttle.conf.example ✅ PASS
+### 11. config/bucketcast.conf.example ✅ PASS
 **Lines:** 111 | **Purpose:** Main configuration template
 
 | Setting Category | Status | Notes |
@@ -242,17 +242,17 @@ rich>=13.0.0
 
 | Requirement | Status | Implementation |
 |-------------|--------|----------------|
-| Safe, idempotent sh script | ✅ | sync-shuttle.sh with safety checks |
+| Safe, idempotent sh script | ✅ | bucketcast.sh with safety checks |
 | Well documented with annotation block | ✅ | 310-line header documentation |
 | Variables at start + .config | ✅ | Lines 326-361 + config files |
 | No rm -rf | ✅ | No delete commands found |
 | No overwriting existing files | ✅ | --ignore-existing, collision detection |
-| Specific dir only (~/.sync-shuttle) | ✅ | validate_path_within_sandbox() |
+| Specific dir only (~/.bucketcast) | ✅ | validate_path_within_sandbox() |
 | Two-way sync (push/pull) | ✅ | action_push(), action_pull() |
-| Server-specific paths | ✅ | ~/.sync-shuttle/remote/<server_id>/files/ |
+| Server-specific paths | ✅ | ~/.bucketcast/remote/<server_id>/files/ |
 | Log record (datetime, paths, uuid) | ✅ | log_operation() with all fields |
 | CLI with --dry-run, --force | ✅ | All flags implemented |
-| Optional TUI | ✅ | tui/sync_tui.py with Textual |
+| Optional TUI | ✅ | tui/bucketcast_tui.py with Textual |
 | Optional S3 features | ✅ | lib/s3.sh with archive/intermediate |
 | Schema contracts | ✅ | 4 schemas in SPECIFICATION.md |
 | Idempotent systems | ✅ | Safe to run multiple times |
@@ -300,13 +300,13 @@ None identified.
 
 | File | Lines | Size | Purpose |
 |------|-------|------|---------|
-| sync-shuttle.sh | 1,139 | ~42KB | Main executable |
+| bucketcast.sh | 1,139 | ~42KB | Main executable |
 | lib/s3.sh | 469 | ~14KB | S3 integration |
 | lib/validation.sh | 386 | ~13KB | Security validation |
 | lib/transfer.sh | 368 | ~12KB | File transfers |
 | lib/core.sh | 366 | ~12KB | Core utilities |
 | lib/logging.sh | 228 | ~8.5KB | Logging |
-| tui/sync_tui.py | 666 | ~21KB | Python TUI |
+| tui/bucketcast_tui.py | 666 | ~21KB | Python TUI |
 | SPECIFICATION.md | 207 | ~6.5KB | Project spec |
 | README.md | ~250 | ~7.5KB | Documentation |
 | config/*.example | ~200 | ~7.5KB | Config templates |
@@ -317,9 +317,9 @@ None identified.
 ## Recommendations
 
 ### Immediate (Before First Use)
-1. ✅ Make sync-shuttle.sh executable: `chmod +x sync-shuttle.sh`
-2. ✅ Run `./sync-shuttle.sh init` to create directory structure
-3. Configure at least one server in `~/.sync-shuttle/config/servers.conf`
+1. ✅ Make bucketcast.sh executable: `chmod +x bucketcast.sh`
+2. ✅ Run `./bucketcast.sh init` to create directory structure
+3. Configure at least one server in `~/.bucketcast/config/servers.conf`
 
 ### Short-term
 1. Add a basic test script in tests/
@@ -335,7 +335,7 @@ None identified.
 
 ## Conclusion
 
-The Sync Shuttle project is **production-ready for its core use case** of safe, manual file synchronization. All critical safety features are implemented, documentation is comprehensive, and the code follows best practices for shell scripting.
+The Bucketcast project is **production-ready for its core use case** of safe, manual file synchronization. All critical safety features are implemented, documentation is comprehensive, and the code follows best practices for shell scripting.
 
 The main gaps are in testing infrastructure and installation automation, which are important for maintainability but do not affect the tool's functionality or safety.
 

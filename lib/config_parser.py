@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Sync Shuttle - TOML Configuration Parser
+Bucketcast - TOML Configuration Parser
 
 Parses and modifies servers.toml.
 
@@ -29,7 +29,7 @@ except ImportError:
         import tomli as tomllib
     except ImportError:
         print("ERROR: TOML support not available.", file=sys.stderr)
-        print("Fix: ~/.local/share/sync-shuttle/.venv/bin/pip install tomli", file=sys.stderr)
+        print("Fix: ~/.local/share/bucketcast/.venv/bin/pip install tomli", file=sys.stderr)
         sys.exit(1)
 
 
@@ -73,8 +73,8 @@ def get_server_bash(config: dict, server_id: str) -> None:
         return str(val).replace("'", "'\\''")
 
     user = server.get('user', '')
-    # Default remote_base to user's home .sync-shuttle directory
-    default_remote_base = f"/home/{user}/.sync-shuttle" if user else ""
+    # Default remote_base to user's home .bucketcast directory
+    default_remote_base = f"/home/{user}/.bucketcast" if user else ""
     remote_base = server.get('remote_base') or default_remote_base
 
     print(f"server_name='{escape(server.get('name', server_id))}'")
@@ -141,7 +141,7 @@ def get_field(config: dict, server_id: str, field: str) -> None:
 
 def write_toml(config: dict, config_path: Path) -> None:
     """Write config back to TOML file."""
-    lines = ["# Sync Shuttle - Server Configuration", ""]
+    lines = ["# Bucketcast - Server Configuration", ""]
 
     servers = config.get("servers", {})
     for server_id, server in servers.items():
@@ -212,7 +212,7 @@ def add_server(config: dict, config_path: Path, server_id: str) -> None:
 
     write_toml(config, config_path)
     print(f"Added server: {server_id}")
-    print(f"Configure with: sync-shuttle config set {server_id} host <ip>")
+    print(f"Configure with: bucketcast config set {server_id} host <ip>")
 
 
 def remove_server(config: dict, config_path: Path, server_id: str) -> None:

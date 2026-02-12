@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #===============================================================================
-# SYNC SHUTTLE - TRANSFER LIBRARY
+# BUCKETCAST - TRANSFER LIBRARY
 #===============================================================================
 # Provides file transfer functions using rsync and scp.
 #
@@ -50,7 +50,7 @@ build_rsync_options() {
     fi
     
     # Never delete (safety)
-    options+=("--ignore-existing" "--backup" "--backup-dir=.sync-shuttle-backup")
+    options+=("--ignore-existing" "--backup" "--backup-dir=.bucketcast-backup")
     
     printf '%s\n' "${options[@]}"
 }
