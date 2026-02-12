@@ -232,8 +232,11 @@ perform_rsync_pull() {
         return 1
     fi
 
-    # Build remote source path
-    local remote_src="${server_user}@${server_host}:${server_remote_base}/local/outbox/"
+    # Build remote source paths (global + server-specific)
+    local remote_base="${server_user}@${server_host}:${server_remote_base}/local/outbox"
+    local remote_global="${remote_base}/global/"
+    local local_hostname="${HOSTNAME:-$(hostname)}"
+    local remote_specific="${remote_base}/${local_hostname}/"
 
     # Build rsync command
     local -a rsync_opts
@@ -241,34 +244,64 @@ perform_rsync_pull() {
 
     # Add SSH options
     rsync_opts+=("-e" "ssh ${ssh_opts}")
-    
+
     # Ensure destination exists
     if [[ "$extra_options" != *"--dry-run"* ]]; then
         ensure_directory "$local_dest"
     fi
-    
+
     # Show dry-run notice
     if [[ "$extra_options" == *"--dry-run"* ]]; then
         log_dry_run_notice
     fi
-    
-    log_info "Pulling from: $remote_src"
-    log_separator
-    
+
     local rsync_exit_code
-    if rsync "${rsync_opts[@]}" "$remote_src" "$local_dest/"; then
+    local had_error=false
+
+    # Pull from global outbox first
+    log_info "Pulling global shares from: ${remote_global}"
+    log_separator
+
+    if rsync "${rsync_opts[@]}" "$remote_global" "$local_dest/"; then
         rsync_exit_code=0
     else
         rsync_exit_code=$?
     fi
-    
-    log_separator
-    
-    if [[ $rsync_exit_code -ne 0 && $rsync_exit_code -ne 24 ]]; then
-        log_error "rsync failed with exit code: $rsync_exit_code"
-        return $rsync_exit_code
+
+    # Exit codes: 0=success, 23=partial (missing source), 24=vanished files
+    if [[ $rsync_exit_code -ne 0 && $rsync_exit_code -ne 23 && $rsync_exit_code -ne 24 ]]; then
+        log_error "rsync (global) failed with exit code: $rsync_exit_code"
+        had_error=true
+    elif [[ $rsync_exit_code -eq 23 ]]; then
+        log_debug "No global outbox on remote (this is OK)"
     fi
-    
+
+    log_separator
+
+    # Pull from server-specific outbox (may not exist)
+    log_info "Pulling server-specific shares from: ${remote_specific}"
+    log_separator
+
+    if rsync "${rsync_opts[@]}" "$remote_specific" "$local_dest/"; then
+        rsync_exit_code=0
+    else
+        rsync_exit_code=$?
+    fi
+
+    # Exit code 23 is OK - means the server-specific directory doesn't exist
+    if [[ $rsync_exit_code -ne 0 && $rsync_exit_code -ne 23 && $rsync_exit_code -ne 24 ]]; then
+        log_error "rsync (server-specific) failed with exit code: $rsync_exit_code"
+        had_error=true
+    elif [[ $rsync_exit_code -eq 23 ]]; then
+        log_debug "No server-specific outbox on remote (this is OK)"
+    fi
+
+    log_separator
+
+    if [[ "$had_error" == "true" ]]; then
+        return 1
+    fi
+
     log_info "Pull complete"
     return 0
 }
