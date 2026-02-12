@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #===============================================================================
-# SYNC SHUTTLE - CORE LIBRARY
+# BUCKETCAST - CORE LIBRARY
 #===============================================================================
 # Provides core utility functions and server management.
 #
@@ -290,7 +290,7 @@ cleanup_on_exit() {
     local exit_code=$?
     
     # Release any locks
-    release_lock "sync-shuttle"
+    release_lock "bucketcast"
     
     # Clean up temp files
     if [[ -d "$TMP_DIR" ]]; then

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #===============================================================================
-# SYNC SHUTTLE - S3 LIBRARY
+# BUCKETCAST - S3 LIBRARY
 #===============================================================================
 # Provides optional S3 integration for archival and intermediate storage.
 #
@@ -335,14 +335,14 @@ show_s3_status() {
     
     if [[ "${S3_ENABLED:-false}" != "true" ]]; then
         echo "  Status:  ${RED}Disabled${RESET}"
-        echo "  Enable in: ${CONFIG_DIR}/sync-shuttle.conf"
+        echo "  Enable in: ${CONFIG_DIR}/bucketcast.conf"
         echo ""
         return 0
     fi
     
     echo "  Status:  ${GREEN}Enabled${RESET}"
     echo "  Bucket:  ${S3_BUCKET:-not set}"
-    echo "  Prefix:  ${S3_PREFIX:-sync-shuttle-archive}"
+    echo "  Prefix:  ${S3_PREFIX:-bucketcast-archive}"
     
     if check_s3_available; then
         echo "  Access:  ${GREEN}OK${RESET}"
@@ -403,7 +403,7 @@ s3_intermediate_push() {
         log_info "Transfer marker created"
         echo ""
         echo "Transfer ID: $transfer_id"
-        echo "Remote can pull with: sync-shuttle s3-pull --transfer-id $transfer_id"
+        echo "Remote can pull with: bucketcast s3-pull --transfer-id $transfer_id"
         
         return 0
     else

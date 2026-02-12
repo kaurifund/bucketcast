@@ -16,7 +16,7 @@ source "${TEST_DIR}/lib/transfer.sh" 2>/dev/null || source "${PROJECT_ROOT}/lib/
 # SETUP
 #===============================================================================
 setup_transfer_test() {
-    export SYNC_BASE_DIR="${TEST_DIR}/sync-shuttle"
+    export SYNC_BASE_DIR="${TEST_DIR}/bucketcast"
     export REMOTE_DIR="${SYNC_BASE_DIR}/remote"
     export LOCAL_DIR="${SYNC_BASE_DIR}/local"
     export INBOX_DIR="${LOCAL_DIR}/inbox"

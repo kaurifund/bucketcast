@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #===============================================================================
-# SYNC SHUTTLE - LOGGING LIBRARY
+# BUCKETCAST - LOGGING LIBRARY
 #===============================================================================
 # Provides structured logging functions for both human-readable and
 # machine-readable (JSON) output.
