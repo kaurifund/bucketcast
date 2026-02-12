@@ -30,8 +30,9 @@ set -o pipefail
 #===============================================================================
 # CONFIGURATION
 #===============================================================================
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+TEST_RUNNER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly TEST_RUNNER_DIR
+readonly PROJECT_ROOT="$(dirname "$TEST_RUNNER_DIR")"
 readonly TEST_TMP_BASE="/tmp/bucketcast-tests"
 readonly TEST_TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 readonly TEST_TMP_DIR="${TEST_TMP_BASE}/${TEST_TIMESTAMP}"
@@ -65,9 +66,9 @@ fi
 #===============================================================================
 
 # Source test helpers
-source "${SCRIPT_DIR}/helpers/assertions.sh"
-source "${SCRIPT_DIR}/helpers/fixtures.sh"
-source "${SCRIPT_DIR}/helpers/mocks.sh"
+source "${TEST_RUNNER_DIR}/helpers/assertions.sh"
+source "${TEST_RUNNER_DIR}/helpers/fixtures.sh"
+source "${TEST_RUNNER_DIR}/helpers/mocks.sh"
 
 # Setup test environment (called before each test file)
 setup_test_env() {
@@ -106,29 +107,29 @@ run_test() {
     local test_name="$1"
     local test_func="$2"
     
-    ((TESTS_RUN++))
-    
+    TESTS_RUN=$((TESTS_RUN + 1))
+
     if [[ "$VERBOSE" == "true" ]]; then
         echo -e "  ${CYAN}RUN${RESET}  $test_name"
     fi
-    
+
     # Run test in subshell to isolate failures
     local test_output
     local test_exit_code
-    
+
     set +e
     test_output=$("$test_func" 2>&1)
     test_exit_code=$?
     set -e
-    
+
     if [[ $test_exit_code -eq 0 ]]; then
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
         echo -e "  ${GREEN}PASS${RESET} $test_name"
     elif [[ $test_exit_code -eq 77 ]]; then
-        ((TESTS_SKIPPED++))
+        TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
         echo -e "  ${YELLOW}SKIP${RESET} $test_name"
     else
-        ((TESTS_FAILED++))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
         echo -e "  ${RED}FAIL${RESET} $test_name"
         if [[ -n "$test_output" ]]; then
             echo "$test_output" | sed 's/^/       /'
@@ -267,15 +268,15 @@ main() {
     
     # Run test suites
     if [[ -z "$TEST_FILTER" || "$TEST_FILTER" == "unit" ]]; then
-        run_test_suite "${SCRIPT_DIR}/unit"
+        run_test_suite "${TEST_RUNNER_DIR}/unit"
     fi
     
     if [[ -z "$TEST_FILTER" || "$TEST_FILTER" == "integration" ]]; then
-        run_test_suite "${SCRIPT_DIR}/integration"
+        run_test_suite "${TEST_RUNNER_DIR}/integration"
     fi
     
     if [[ -z "$TEST_FILTER" || "$TEST_FILTER" == "e2e" ]]; then
-        run_test_suite "${SCRIPT_DIR}/e2e"
+        run_test_suite "${TEST_RUNNER_DIR}/e2e"
     fi
     
     # Cleanup temp directory

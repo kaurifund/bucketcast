@@ -18,23 +18,26 @@
 #===============================================================================
 # REQUIRED TOOLS
 #===============================================================================
-readonly REQUIRED_TOOLS=(
-    "rsync"
-    "ssh"
-    "date"
-)
+# Guard allows safe re-sourcing (e.g. multiple test files)
+if [[ -z "${REQUIRED_TOOLS+x}" ]]; then
+    readonly REQUIRED_TOOLS=(
+        "rsync"
+        "ssh"
+        "date"
+    )
 
-readonly OPTIONAL_TOOLS=(
-    "uuidgen"
-    "jq"
-    "tree"
-)
+    readonly OPTIONAL_TOOLS=(
+        "uuidgen"
+        "jq"
+        "tree"
+    )
 
-# Reserved namespaces that cannot be used as server IDs
-# These are used for special directory structures (e.g., outbox/global/)
-readonly RESERVED_NAMESPACES=(
-    "global"
-)
+    # Reserved namespaces that cannot be used as server IDs
+    # These are used for special directory structures (e.g., outbox/global/)
+    readonly RESERVED_NAMESPACES=(
+        "global"
+    )
+fi
 
 #===============================================================================
 # VALIDATE: Environment and dependencies
@@ -101,19 +104,19 @@ validate_path_within_sandbox() {
     dir_part=$(dirname "$path_to_check")
 
     if [[ -d "$dir_part" ]]; then
-        # Directory exists, resolve it
-        resolved_path=$(cd "$dir_part" && pwd)/$(basename "$path_to_check")
+        # Directory exists — resolve physically (follows symlinks)
+        resolved_path=$(cd "$dir_part" && pwd -P)/$(basename "$path_to_check")
     elif [[ "$path_to_check" == /* ]]; then
         # Already absolute, use as-is
         resolved_path="$path_to_check"
     else
         # Relative path, make absolute
-        resolved_path="$(pwd)/$path_to_check"
+        resolved_path="$(pwd -P)/$path_to_check"
     fi
-    
-    # Resolve sandbox to absolute path
+
+    # Resolve sandbox to absolute physical path
     local resolved_sandbox
-    resolved_sandbox=$(cd "$sandbox" 2>/dev/null && pwd) || {
+    resolved_sandbox=$(cd "$sandbox" 2>/dev/null && pwd -P) || {
         log_error "Sandbox directory does not exist: $sandbox"
         return 1
     }
@@ -480,6 +483,12 @@ validate_relay_params() {
     # Validate to_server ID format
     if ! validate_server_id "$to_server"; then
         log_error "Invalid destination server ID: $to_server"
+        return 1
+    fi
+
+    # Check from and to are different
+    if [[ "$from_server" == "$to_server" ]]; then
+        log_error "Source and destination servers cannot be the same: $from_server"
         return 1
     fi
 

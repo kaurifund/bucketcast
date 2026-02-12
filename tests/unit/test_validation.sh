@@ -195,15 +195,16 @@ test_check_file_collision_detects_existing_file() {
 test_check_file_collision_allows_with_force() {
     local test_file="${TEST_DIR}/existing.txt"
     echo "existing" > "$test_file"
-    
+
     export FORCE="true"
-    
-    # With force, collision check should pass (return 0)
-    # Note: actual behavior may prompt, but in tests FORCE=true should bypass
+    export ARCHIVE_DIR="${TEST_DIR}/archive"
+    export SYNC_BASE_DIR="${TEST_DIR}"
+    mkdir -p "$ARCHIVE_DIR"
+
+    # With force in non-interactive mode: archives existing file and returns 0
     if ! check_file_collision "$test_file" 2>/dev/null; then
-        # This is expected if the function requires interactive confirmation
-        # In non-interactive mode with FORCE, it might fail
-        :  # Accept either behavior for unit test
+        echo "Should allow overwrite with --force in non-interactive mode"
+        return 1
     fi
 }
 

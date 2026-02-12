@@ -8,7 +8,6 @@
 #   generate_uuid()       - Generate UUIDv4 for operation tracking
 #   get_server_config()   - Load server configuration
 #   list_all_servers()    - List all configured servers
-#   resolve_path()        - Resolve relative paths
 #===============================================================================
 
 #===============================================================================
@@ -82,7 +81,7 @@ get_server_config() {
     python=$(get_config_python) || return 1
 
     # Parse config with Python
-    "$python" "$parser" "$servers_file" get "$server_id" 2>&1 || {
+    "$python" "$parser" "$servers_file" get "$server_id" || {
         log_error "Failed to load server config: $server_id"
         return 1
     }
@@ -107,34 +106,6 @@ list_all_servers() {
 
     # List servers using Python parser
     "$python" "$parser" "$servers_file" list
-}
-
-#===============================================================================
-# RESOLVE: Path to absolute
-#===============================================================================
-resolve_path() {
-    local path="$1"
-    local base_dir="${2:-$(pwd)}"
-    
-    # If already absolute, just clean it
-    if [[ "$path" == /* ]]; then
-        echo "$path"
-        return 0
-    fi
-    
-    # Expand ~
-    if [[ "$path" == ~* ]]; then
-        path="${path/#\~/$HOME}"
-    fi
-    
-    # Make relative path absolute
-    if [[ -e "$path" ]]; then
-        cd "$(dirname "$path")" && pwd -P
-        return 0
-    fi
-    
-    # Path doesn't exist, resolve based on base_dir
-    echo "${base_dir}/${path}"
 }
 
 #===============================================================================
@@ -275,11 +246,11 @@ acquire_lock() {
 #===============================================================================
 release_lock() {
     local lock_name="${1:-default}"
-    local lock_file="${TMP_DIR}/${lock_name}.lock"
-    
+    local lock_file="${TMP_DIR:-/nonexistent}/${lock_name}.lock"
+
     if [[ -f "$lock_file" ]]; then
         rm -f "$lock_file"
-        log_debug "Released lock: $lock_name"
+        log_debug "Released lock: $lock_name" 2>/dev/null || true
     fi
 }
 
@@ -288,15 +259,15 @@ release_lock() {
 #===============================================================================
 cleanup_on_exit() {
     local exit_code=$?
-    
-    # Release any locks
+
+    # Release any locks (guard against unset TMP_DIR in EXIT trap)
     release_lock "bucketcast"
-    
+
     # Clean up temp files
-    if [[ -d "$TMP_DIR" ]]; then
+    if [[ -n "${TMP_DIR:-}" && -d "${TMP_DIR}" ]]; then
         find "$TMP_DIR" -maxdepth 1 -type f -name "*.tmp" -mmin +60 -delete 2>/dev/null || true
     fi
-    
+
     exit $exit_code
 }
 

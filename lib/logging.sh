@@ -18,10 +18,13 @@
 #===============================================================================
 # LOG LEVEL CONSTANTS
 #===============================================================================
-readonly LOG_LEVEL_DEBUG=0
-readonly LOG_LEVEL_INFO=1
-readonly LOG_LEVEL_WARN=2
-readonly LOG_LEVEL_ERROR=3
+# Guard allows safe re-sourcing (e.g. multiple test files)
+if [[ -z "${LOG_LEVEL_DEBUG+x}" ]]; then
+    readonly LOG_LEVEL_DEBUG=0
+    readonly LOG_LEVEL_INFO=1
+    readonly LOG_LEVEL_WARN=2
+    readonly LOG_LEVEL_ERROR=3
+fi
 
 #===============================================================================
 # HELPER: Get numeric log level

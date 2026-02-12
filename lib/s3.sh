@@ -270,18 +270,17 @@ cleanup_s3_archives() {
     
     # Note: This is a preview/dry-run by default for safety
     local deleted_count=0
-    
-    aws s3 ls "s3://${S3_BUCKET}/${S3_PREFIX}/" --recursive 2>/dev/null | \
+
     while read -r line; do
         local date path
         date=$(echo "$line" | awk '{print $1}')
         path=$(echo "$line" | awk '{print $4}')
-        
+
         if [[ "$date" < "$cutoff_date" ]]; then
             log_debug "Would delete: $path (from $date)"
             ((++deleted_count))
         fi
-    done
+    done < <(aws s3 ls "s3://${S3_BUCKET}/${S3_PREFIX}/" --recursive 2>/dev/null)
     
     log_info "Found $deleted_count archives eligible for deletion"
     

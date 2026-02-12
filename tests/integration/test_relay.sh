@@ -16,7 +16,7 @@ source "${TEST_DIR}/lib/transfer.sh" 2>/dev/null || source "${PROJECT_ROOT}/lib/
 # SETUP
 #===============================================================================
 setup_relay_test() {
-    export SYNC_BASE_DIR="${TEST_DIR}/sync-shuttle"
+    export SYNC_BASE_DIR="${TEST_DIR}/bucketcast"
     export REMOTE_DIR="${SYNC_BASE_DIR}/remote"
     export LOCAL_DIR="${SYNC_BASE_DIR}/local"
     export INBOX_DIR="${LOCAL_DIR}/inbox"
@@ -27,6 +27,8 @@ setup_relay_test() {
     export LOG_JSON_FILE="${LOGS_DIR}/sync.jsonl"
     export CONFIG_DIR="${SYNC_BASE_DIR}/config"
 
+    # Clean slate — prevents state leaking between test subshells
+    rm -rf "$SYNC_BASE_DIR"
     mkdir -p "$REMOTE_DIR" "$INBOX_DIR" "$OUTBOX_DIR" "$TMP_DIR" "$LOGS_DIR" "$CONFIG_DIR"
     touch "$LOG_FILE" "$LOG_JSON_FILE"
 
@@ -47,11 +49,10 @@ setup_relay_test() {
 test_validate_relay_servers_required_rejects_missing_from() {
     setup_relay_test
 
-    export FROM_SERVER=""
-    export TO_SERVER="server-b"
-
-    # Source the main script functions
-    source "${PROJECT_ROOT}/sync-shuttle.sh" 2>/dev/null
+    # Source FIRST (it resets globals), then set test values
+    source "${PROJECT_ROOT}/bucketcast.sh" 2>/dev/null
+    FROM_SERVER=""
+    TO_SERVER="server-b"
 
     if validate_relay_servers_required 2>/dev/null; then
         echo "Should reject missing FROM_SERVER"
@@ -62,11 +63,9 @@ test_validate_relay_servers_required_rejects_missing_from() {
 test_validate_relay_servers_required_rejects_missing_to() {
     setup_relay_test
 
-    export FROM_SERVER="server-a"
-    export TO_SERVER=""
-
-    # Source the main script functions
-    source "${PROJECT_ROOT}/sync-shuttle.sh" 2>/dev/null
+    source "${PROJECT_ROOT}/bucketcast.sh" 2>/dev/null
+    FROM_SERVER="server-a"
+    TO_SERVER=""
 
     if validate_relay_servers_required 2>/dev/null; then
         echo "Should reject missing TO_SERVER"
@@ -77,11 +76,9 @@ test_validate_relay_servers_required_rejects_missing_to() {
 test_validate_relay_servers_required_rejects_same_server() {
     setup_relay_test
 
-    export FROM_SERVER="server-a"
-    export TO_SERVER="server-a"
-
-    # Source the main script functions
-    source "${PROJECT_ROOT}/sync-shuttle.sh" 2>/dev/null
+    source "${PROJECT_ROOT}/bucketcast.sh" 2>/dev/null
+    FROM_SERVER="server-a"
+    TO_SERVER="server-a"
 
     if validate_relay_servers_required 2>/dev/null; then
         echo "Should reject same source and destination server"
@@ -92,11 +89,9 @@ test_validate_relay_servers_required_rejects_same_server() {
 test_validate_relay_servers_required_accepts_valid_pair() {
     setup_relay_test
 
-    export FROM_SERVER="server-a"
-    export TO_SERVER="server-b"
-
-    # Source the main script functions
-    source "${PROJECT_ROOT}/sync-shuttle.sh" 2>/dev/null
+    source "${PROJECT_ROOT}/bucketcast.sh" 2>/dev/null
+    FROM_SERVER="server-a"
+    TO_SERVER="server-b"
 
     if ! validate_relay_servers_required 2>/dev/null; then
         echo "Should accept valid server pair"

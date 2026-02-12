@@ -275,9 +275,12 @@ def load_log_lines(logs_dir: Path, limit: int = 50) -> List[str]:
         return []
 
     try:
-        lines = log_file.read_text().strip().split("\n")
+        text = log_file.read_text().strip()
+        if not text:
+            return []
+        lines = text.split("\n")
         return lines[-limit:]
-    except:
+    except Exception:
         return []
 
 
@@ -307,7 +310,7 @@ def relative_time(timestamp: str) -> str:
             return f"{delta.seconds // 60}m ago"
         else:
             return "just now"
-    except:
+    except Exception:
         return ""
 
 
@@ -377,13 +380,21 @@ class FileTree(Tree):
             pass
 
 
+def _has_children(path: Path) -> bool:
+    """Check if directory has any children, safely."""
+    try:
+        return any(True for _ in path.iterdir())
+    except (PermissionError, OSError):
+        return False
+
+
 def count_files(path: Path) -> int:
     """Count files in a directory (non-recursive for speed)."""
     if not path.exists():
         return 0
     try:
         return sum(1 for p in path.iterdir() if p.is_file() or p.is_dir())
-    except:
+    except Exception:
         return 0
 
 
@@ -818,7 +829,7 @@ class BucketcastTUI(App):
                     "[bold]📥 Inbox[/bold] — Files received from other servers\n",
                     classes="section-title"
                 )
-                if inbox_path.exists() and any(inbox_path.iterdir()):
+                if inbox_path.exists() and _has_children(inbox_path):
                     with ScrollableContainer():
                         yield FileTree(inbox_path, "Received Files")
                 else:
@@ -840,7 +851,7 @@ class BucketcastTUI(App):
                     "└─ <server>/   → Available to specific server[/dim]\n",
                     classes="structure-hint"
                 )
-                if outbox_path.exists() and any(outbox_path.iterdir()):
+                if outbox_path.exists() and _has_children(outbox_path):
                     with ScrollableContainer():
                         yield FileTree(outbox_path, "Shared Files")
                 else:
@@ -961,38 +972,27 @@ class BucketcastTUI(App):
         script = Path(__file__).parent.parent / "bucketcast.sh"
         args = ["push", "--server", server_id, "--source", source]
         self.notify(f"Pushing to {server_id}...", timeout=2)
-        try:
-            result = subprocess.run(
+
+        def _run() -> subprocess.CompletedProcess:
+            return subprocess.run(
                 [str(script)] + args,
-                capture_output=True,
-                text=True,
-                timeout=60,
+                capture_output=True, text=True, timeout=60,
             )
-            if result.returncode == 0:
-                self.notify("✓ Push complete!", severity="information")
-            else:
-                self.notify(f"Push failed: {result.stderr[:80]}", severity="error")
-        except Exception as e:
-            self.notify(f"Error: {e}", severity="error")
+
+        self.run_worker(_run, name="push", exit_on_error=False)
 
     def _execute_pull(self, server_id: str) -> None:
         script = Path(__file__).parent.parent / "bucketcast.sh"
         args = ["pull", "--server", server_id]
         self.notify(f"Pulling from {server_id}...", timeout=2)
-        try:
-            result = subprocess.run(
+
+        def _run() -> subprocess.CompletedProcess:
+            return subprocess.run(
                 [str(script)] + args,
-                capture_output=True,
-                text=True,
-                timeout=60,
+                capture_output=True, text=True, timeout=60,
             )
-            if result.returncode == 0:
-                self.notify("✓ Pull complete!", severity="information")
-                self.action_refresh()
-            else:
-                self.notify(f"Pull failed: {result.stderr[:80]}", severity="error")
-        except Exception as e:
-            self.notify(f"Error: {e}", severity="error")
+
+        self.run_worker(_run, name="pull", exit_on_error=False)
 
     def _execute_share(self, target: str, source: str) -> None:
         script = Path(__file__).parent.parent / "bucketcast.sh"
@@ -1001,20 +1001,31 @@ class BucketcastTUI(App):
         else:
             args = ["share", "--server", target, "--source", source]
         self.notify(f"Sharing...", timeout=2)
-        try:
-            result = subprocess.run(
+
+        def _run() -> subprocess.CompletedProcess:
+            return subprocess.run(
                 [str(script)] + args,
-                capture_output=True,
-                text=True,
-                timeout=30,
+                capture_output=True, text=True, timeout=30,
             )
-            if result.returncode == 0:
-                self.notify("✓ File shared!", severity="information")
-                self.action_refresh()
-            else:
-                self.notify(f"Share failed: {result.stderr[:80]}", severity="error")
-        except Exception as e:
-            self.notify(f"Error: {e}", severity="error")
+
+        self.run_worker(_run, name="share", exit_on_error=False)
+
+    def on_worker_state_changed(self, event) -> None:
+        """Handle worker completion for push/pull/share operations."""
+        worker = event.worker
+        if worker.is_finished and not worker.is_cancelled:
+            result = worker.result
+            if result is None:
+                return
+            if isinstance(result, subprocess.CompletedProcess):
+                if result.returncode == 0:
+                    self.notify(f"✓ {worker.name.title()} complete!", severity="information")
+                    if worker.name in ("pull", "share"):
+                        self.action_refresh()
+                else:
+                    self.notify(f"{worker.name.title()} failed: {result.stderr[:80]}", severity="error")
+            elif isinstance(result, Exception):
+                self.notify(f"Error: {result}", severity="error")
 
 
 # =============================================================================
